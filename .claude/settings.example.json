@@ -43,7 +43,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PY=$(which python3 2>/dev/null || which python 2>/dev/null); FILE=$(\"$PY\" -c \"import sys,json; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('file_path',''))\" 2>/dev/null); if [[ \"$FILE\" == *.py ]] && [[ -f \"$FILE\" ]]; then \"$PY\" -m py_compile \"$FILE\" 2>&1 && echo \"✓ $FILE syntax OK\" || echo \"⚠️  SYNTAX WARNING: $FILE has errors — verify before committing\"; fi"
+            "command": "node -e \"const d=JSON.parse(require('fs').readFileSync(0,'utf8'));const f=(d.tool_input||{}).file_path||'';if(!f.endsWith('.py'))process.exit(0);const {spawnSync}=require('child_process');const r=spawnSync('python3',['-m','py_compile',f],{encoding:'utf8'});console.log(r.status===0?'✓ '+f+' syntax OK':'⚠️  SYNTAX WARNING: '+f+' has errors — verify before committing');\""
           }
         ]
       }
