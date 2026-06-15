@@ -1,0 +1,147 @@
+---
+# orchestrator_config.yaml — SYSTEM / ENVIRONMENT LAYER
+#
+# The LLM controls nothing in this file. It is read by humans and scripts.
+# Behavioural rules for the agent live in AGENT_INSTRUCTIONS.md, not here.
+# That separation is the entire point.
+#
+# Three standing principles:
+#   1. Hygiene first. CI, secret-scan, dep-audit are non-negotiable and gate
+#      every merge. The agent tooling is secondary to these.
+#   2. Everything pinned. Unpinned third-party tools driving an autonomous
+#      loop is the real supply-chain threat model.
+#   3. Nothing always-on. Tools activate by profile (lean / standard / full)
+#      to avoid the meta-instruction bloat failure mode.
+
+meta:
+  schema_version: 3
+  pins_reviewed: "2026-06-14 — verified to exist; re-confirm before running"
+
+# ── Version pins ─────────────────────────────────────────────────────────────
+# Single source of truth. bootstrap.sh refuses to run if any value is VERIFY.
+versions:
+  node_min: "18"
+  python_min: "3.10"
+  superpowers:  "5.1.0"    # obra/superpowers
+  claude_mem:   "12.3.8"   # thedotmack/claude-mem
+  graphify_ref: "v3"        # safishamsi/graphify  (git tag)
+  spec_kit_ref: "v0.10.2"   # github/spec-kit Specify CLI (git tag)
+
+# ── Dependencies ─────────────────────────────────────────────────────────────
+dependencies:
+  - id: claude_code
+    install: "native installer — see https://docs.anthropic.com/claude-code"
+    alt:     "npm i -g @anthropic-ai/claude-code  # requires Node >=18"
+    check:   "claude doctor"
+
+  - id: claude_mem
+    install: "npx claude-mem@12.3.8 install"
+    start:   "claude-mem start  # worker must be running; hooks auto-start in future sessions"
+    check:   "claude-mem status"
+    gate:    "profile == full OR explicit opt-in"
+
+  - id: graphify
+    # Source install eliminates PyPI name ambiguity. Pinned to @v3 tag.
+    # Note: the import module is 'graphify' (single y); the PyPI package name
+    # is 'graphifyy' (double y) by the maintainer's deliberate choice.
+    install: "uv tool install 'git+https://github.com/safishamsi/graphify.git@v3'"
+    check:   "graphify --help"
+    gate:    "profile == full AND repo_files > 500"
+
+  - id: spec_kit
+    install: "uv tool install specify-cli --from 'git+https://github.com/github/spec-kit.git@v0.10.2'"
+    init:    "specify init . --integration claude  # also: codex | cursor | copilot"
+    check:   "specify self check"
+    gate:    "profile == standard OR profile == full"
+
+  - id: caveman
+    install: "npx skills add JuliusBrussee/caveman"
+    note:    "Use npx install — avoid the curl|bash installer. Opt-in only."
+    gate:    "explicit opt-in"
+
+# ── Plugin deployments ───────────────────────────────────────────────────────
+# These run inside the coding agent, not from the shell.
+# Each executes third-party code with your privileges — verify before use.
+plugins:
+  - cmd:  "/plugin marketplace add obra/superpowers-marketplace"
+    then: "/plugin install superpowers@superpowers-marketplace"
+    gate: "all profiles"
+
+  - cmd:  "/plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill"
+    then: "/plugin install ui-ux-pro-max@ui-ux-pro-max-skill"
+    gate: "explicit opt-in — not independently verified; check before installing"
+
+# ── Hygiene gates ─────────────────────────────────────────────────────────────
+# This section is what actually makes a production-grade repo.
+# Enable branch protection on GitHub so these checks block merges.
+hygiene:
+  ci_checks:          [lint, typecheck, test, build, dep_audit, secret_scan]
+  branch_protection:  true
+  dep_audit:
+    tools:            [npm_audit, pip_audit]
+    block_on:         [high, critical]
+  secret_scan:
+    tool:             gitleaks
+    block_on:         any_finding
+  lockfiles_committed: true
+  conventional_commits: true
+
+# ── Config audit ──────────────────────────────────────────────────────────────
+# Read-only. Replaces the original "self-healing" step, which was privilege
+# escalation. This file never mutates ~/.claude, ~/.codex, or ~/.cursor.
+config_audit:
+  mode:     read_only
+  targets:
+    - "~/.claude/settings.json"
+    - "~/.codex/config.toml"
+    - "~/.cursor/rules/"
+  output:   "reports/config-audit.md"
+  forbidden: [auto_delete, strip_permission_modes, rewrite_user_rules]
+
+# ── Model routing ─────────────────────────────────────────────────────────────
+# The orchestrator or human sets the model. The agent does not route itself.
+model_routing:
+  - layer:   strategic
+    model:   claude-opus-4-8
+    handles: [architecture, spec_generation, deep_debugging, security_review]
+  - layer:   execution
+    model:   [claude-sonnet-4-6, claude-haiku-4-5]
+    handles: [boilerplate, unit_tests, localized_logic]
+
+# ── Memory hooks ─────────────────────────────────────────────────────────────
+# The agent queries memory via MCP tools. It does not administer the stores.
+# Retrieval pattern enforced in AGENT_INSTRUCTIONS.md: search→timeline→get_observations
+memory:
+  episodic:    sqlite
+  semantic:    chromadb
+  hooks:
+    SessionStart:  load_recent_context
+    PostToolUse:   compress_and_log
+  mcp_servers: [claude-mem, graphify]
+
+# ── Execution governance ──────────────────────────────────────────────────────
+governance:
+  concurrency:
+    isolation:           git_worktrees
+    one_worktree_per:    feature_branch
+  recursion_pass_ceiling: 5
+  human_review_gate:      mandatory  # overrides any "continuous loop" framing
+  security_review:
+    command:    "/security-review"
+    tool_scope: read_only
+
+# ── Frontend (conditional) ───────────────────────────────────────────────────
+# Active only when /speckit.plan selects React / Next.js / Tailwind.
+# Ignored entirely for Python, Go, Vue, Svelte — defer to /speckit.plan.
+frontend:
+  activate_when: "stack in [react, nextjs, tailwind]"
+  base: shadcn
+  libraries:
+    - id:      skiper-ui
+      install: "npx shadcn add @skiper-ui/<component>"
+      note:    "~70+ components (mix of free and premium)"
+    - id:      aceternity
+      note:    "Framer Motion animations — deploy selectively"
+  guardrails:
+    - anthropics/frontend-design
+    - "vercel-labs/agent-skills@web-design-guidelines"

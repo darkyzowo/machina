@@ -1,0 +1,39 @@
+# ── Agent memory and graph artifacts (must not commit) ───────────────────────
+graphify-out/          # graphify output: graph.json, html, cache
+**/.graphify_python    # graphify python env pointer
+*.db                   # SQLite episodic memory stores
+**/chroma/             # ChromaDB vector stores
+**/chromadb/
+.claude-mem/           # claude-mem local data
+.agent-profile         # local profile state — regenerate with: make profile
+
+# ── Secrets ───────────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.*
+reports/               # config audit reports may contain local path info
+
+# ── Dependencies and build output ─────────────────────────────────────────────
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+dist/
+build/
+.cache/
+.turbo/
+.next/
+out/
+
+# ── Editor and OS noise ───────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+*.code-workspace
