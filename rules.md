@@ -1,5 +1,5 @@
 # Machina Agent Instructions
-# Version: 2.0.0 — Post-stress-test hardening
+# Version: 2.2.0 — Profile-aware injection + mechanical enforcement hooks
 # Source: ~/.claude/machina/rules.md
 # Do not edit directly — update rules.md in the repo and re-run global-setup.sh
 
