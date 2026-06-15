@@ -193,15 +193,34 @@ Per-project file load order (highest → lowest priority):
 | `AGENT_INSTRUCTIONS.md` | Per-project behavioral overrides |
 | `orchestrator_config.yaml` | Model routing and profile definitions |
 | `scripts/global-setup.sh` | One-time global install script |
+| `scripts/dependency-pins.sh` | Pinned versions for all Machina-managed dependencies |
 | `scripts/detect-profile.sh` | Auto-detects lean/standard/full for a project |
 | `scripts/bootstrap.sh` | Per-project initialisation |
-| `.claude/hooks/mode-init.js` | SessionStart hook — conditional rules injection |
+| `.claude/hooks/mode-init.js` | SessionStart hook — profile-aware rules injection |
+| `.claude/hooks/done-signal-guard.js` | PostToolUse hook — done-signal rule reminder |
+| `.claude/hooks/pass-ceiling.js` | PreToolUse hook — 5-pass ceiling counter |
 | `.claude/commands/project.md` | `/project` slash command |
 | `.claude/commands/casual.md` | `/casual` slash command |
+| `.claude/commands/machina-reset.md` | `/machina-reset` — reset pass counter |
 
 ---
 
 ## Changelog
+
+### v2.2.0 — Mechanical enforcement + audit hardening
+- Profile-aware section injection: `mode-init.js` now reads `.agent-profile` and injects only §0–§4 (lean), §0–§5 (standard), or §0–§6 (full). §0 always active.
+- CLAUDE.md-only projects correctly default to lean (§0–§4), not full §0–§6
+- New hook: `done-signal-guard.js` (PostToolUse) — reminds agent to obtain external verification before marking work done. §0 done-signal rule.
+- New hook: `pass-ceiling.js` (PreToolUse) — counts Edit/Write calls per session; warns at pass 4, blocks at pass 5. §0 pass ceiling.
+- New command: `/machina-reset` — resets pass counter after human review clears a loop
+- `global-setup.sh`: installs all three hooks, wires them into `settings.json` idempotently
+- `global-setup.sh`: installs `specify-cli` (spec-kit) for standard/full profiles
+- New `scripts/dependency-pins.sh`: single source of truth for all pinned versions (graphify, specify-cli, claude-mem, superpowers)
+- `graphify` install now pinned to `@v3` via `dependency-pins.sh`
+- `rules.md` §3 UX gate: Step 0 (agent-browser check) + Step 0b (curl 200 check) — SKIPPED ≠ PASSED
+- `README.md`: documented `~/.claude/mode.txt` manual override escape hatch
+- `README.md`: added file precedence table (AGENT_INSTRUCTIONS > CLAUDE.md > rules.md)
+- `scripts/verify.sh`: `dependency-pins.sh` added to required scaffold check
 
 ### v2.1.0 — Mode-aware sessions
 - Added `mode-init.js` SessionStart hook: auto-detects project vs casual mode, injects rules conditionally
