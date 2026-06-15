@@ -54,6 +54,12 @@
           {
             "type": "command",
             "command": "node -e \"const d=JSON.parse(require('fs').readFileSync(0,'utf8'));const f=(d.tool_input||{}).file_path||'';if(!f.endsWith('.py'))process.exit(0);const {spawnSync}=require('child_process');const r=spawnSync('python3',['-m','py_compile',f],{encoding:'utf8'});console.log(r.status===0?'✓ '+f+' syntax OK':'⚠️  SYNTAX WARNING: '+f+' has errors — verify before committing');\""
+          },
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/hooks/done-signal-guard.js\"",
+            "timeout": 5,
+            "statusMessage": "Checking done-signal rule..."
           }
         ]
       }
