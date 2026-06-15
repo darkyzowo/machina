@@ -123,11 +123,24 @@ Machina auto-detects session mode at startup and injects rules conditionally —
 
 | Signal | Mode | Rules injected |
 |--------|------|---------------|
-| `.agent-profile` in project dir | Project | Full §0–§6 per profile tier |
-| `CLAUDE.md` in project dir (no `.agent-profile`) | Project | Full §0–§6, defaults to lean |
+| `.agent-profile` in project dir | Project | §0–§4/§5/§6 per profile tier |
+| `CLAUDE.md` in project dir (no `.agent-profile`) | Project | §0–§4 (lean, no §5/§6) |
 | Neither present | Casual | §4 only (surgical changes) |
 
 Switch mid-session with `/project` or `/casual`. To persist the profile for a project, run `detect-profile.sh` in the project root.
+
+### Manual mode override
+
+Create `~/.claude/mode.txt` containing `project` or `casual` to force a mode
+regardless of project structure. Delete the file to restore auto-detection.
+
+```bash
+echo "project" > ~/.claude/mode.txt   # force project mode
+rm ~/.claude/mode.txt                  # restore auto-detection
+```
+
+This is an escape hatch for edge cases — prefer `.agent-profile` for
+persistent project configuration.
 
 ---
 
