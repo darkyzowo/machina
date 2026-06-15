@@ -96,6 +96,9 @@ Then open a Claude Code session and run the plugin steps once:
 /plugin install superpowers@superpowers-marketplace
 /plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill
 /plugin install ui-ux-pro-max@ui-ux-pro-max-skill
+/plugin marketplace add jarrodwatts/claude-hud
+/plugin install claude-hud
+/claude-hud:setup
 ```
 
 ---
@@ -106,10 +109,25 @@ Then open a Claude Code session and run the plugin steps once:
 cd your-project
 git init
 cp /path/to/machina/CLAUDE.md .
-# .agent-profile is written by detect-profile.sh automatically
-# or create manually: echo "lean" > .agent-profile
+bash /path/to/machina/scripts/detect-profile.sh   # auto-detects lean/standard/full
 claude
 ```
+
+For existing projects not bootstrapped with Machina, run `detect-profile.sh` once in the project root to create `.agent-profile`. Without it, mode-init falls back to project mode (full profile) if a `CLAUDE.md` is present, or casual mode otherwise.
+
+---
+
+## Mode system
+
+Machina auto-detects session mode at startup and injects rules conditionally — no static import, no wasted tokens on casual sessions.
+
+| Signal | Mode | Rules injected |
+|--------|------|---------------|
+| `.agent-profile` in project dir | Project | Full §0–§6 per profile tier |
+| `CLAUDE.md` in project dir (no `.agent-profile`) | Project | Full §0–§6, defaults to lean |
+| Neither present | Casual | §4 only (surgical changes) |
+
+Switch mid-session with `/project` or `/casual`. To persist the profile for a project, run `detect-profile.sh` in the project root.
 
 ---
 
@@ -118,6 +136,11 @@ claude
 ```
 ~/.claude/
   CLAUDE.md              ← global entry point (append-only, not overwritten)
+  hooks/
+    mode-init.js         ← SessionStart hook: detects mode, injects rules conditionally
+  commands/
+    project.md           ← /project slash command (load full rules mid-session)
+    casual.md            ← /casual slash command (suspend TDD/UX gate)
   machina/
     rules.md             ← Machina behavioral spec (written by global-setup.sh)
   skills/
@@ -127,7 +150,7 @@ claude
 your-project/
   CLAUDE.md              ← loads AGENT_INSTRUCTIONS.md for per-project context
   AGENT_INSTRUCTIONS.md  ← project-specific overrides (optional)
-  .agent-profile         ← lean | standard | full
+  .agent-profile         ← lean | standard | full (written by detect-profile.sh)
   orchestrator_config.yaml ← model routing and profile definitions
 ```
 
@@ -144,10 +167,22 @@ your-project/
 | `scripts/global-setup.sh` | One-time global install script |
 | `scripts/detect-profile.sh` | Auto-detects lean/standard/full for a project |
 | `scripts/bootstrap.sh` | Per-project initialisation |
+| `.claude/hooks/mode-init.js` | SessionStart hook — conditional rules injection |
+| `.claude/commands/project.md` | `/project` slash command |
+| `.claude/commands/casual.md` | `/casual` slash command |
 
 ---
 
 ## Changelog
+
+### v2.1.0 — Mode-aware sessions
+- Added `mode-init.js` SessionStart hook: auto-detects project vs casual mode, injects rules conditionally
+- Project mode auto-detected via `.agent-profile` or `CLAUDE.md` in project root
+- Casual mode: only §4 surgical changes active — saves ~1,766 tokens/session on non-project work
+- Added `/project` and `/casual` slash commands for mid-session mode switching
+- Added `detect-profile.sh` documentation for existing projects without `.agent-profile`
+- Added claude-hud to setup and bootstrap instructions
+- Replaced static `@machina/rules.md` CLAUDE.md import with conditional hook injection
 
 ### v2.0.0 — Post-stress-test hardening
 - Added Qualitative UX Gate using `agent-browser`

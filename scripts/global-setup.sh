@@ -102,25 +102,62 @@ else
   exit 1
 fi
 
-# ── §7 Idempotent CLAUDE.md integration ─────────────────────────
+# ── §7 Mode-aware session system ────────────────────────────────
 echo ""
-echo "→ [7/7] Linking rules into $CLAUDE_MD..."
+echo "→ [7/7] Installing Machina mode system..."
+
+mkdir -p "$HOME/.claude/hooks"
+cp "$REPO_ROOT/.claude/hooks/mode-init.js" "$HOME/.claude/hooks/mode-init.js"
+echo "  ✓ mode-init.js installed to ~/.claude/hooks/"
+
+mkdir -p "$HOME/.claude/commands"
+cp "$REPO_ROOT/.claude/commands/project.md" "$HOME/.claude/commands/project.md"
+cp "$REPO_ROOT/.claude/commands/casual.md" "$HOME/.claude/commands/casual.md"
+echo "  ✓ /project and /casual commands installed to ~/.claude/commands/"
+
+# Add mode comment to CLAUDE.md (rules injected by hook — no @-import needed)
 mkdir -p "$(dirname "$CLAUDE_MD")"
 touch "$CLAUDE_MD"
-grep -q "@machina/rules.md" "$CLAUDE_MD" \
-  || echo -e "\n# Machina — https://github.com/darkyzowo/machina\n@machina/rules.md" >> "$CLAUDE_MD"
-echo "  ✓ @machina/rules.md linked (idempotent)"
+grep -q "mode-init" "$CLAUDE_MD" \
+  || echo -e "\n# Machina — https://github.com/darkyzowo/machina\n# Rules injected by mode-init hook — project = full §0-§6, casual = §4 only\n# Switch mid-session: /project or /casual" >> "$CLAUDE_MD"
+echo "  ✓ CLAUDE.md updated (idempotent)"
+
+# Idempotent patch: add mode-init to SessionStart hooks in settings.json
+SETTINGS="$HOME/.claude/settings.json"
+if [ -f "$SETTINGS" ]; then
+  node -e "
+const fs = require('fs'), home = process.env.HOME || process.env.USERPROFILE;
+const p = home + '/.claude/settings.json';
+const s = JSON.parse(fs.readFileSync(p, 'utf8'));
+if (!s.hooks) s.hooks = {};
+if (!s.hooks.SessionStart) s.hooks.SessionStart = [];
+const ok = s.hooks.SessionStart.some(function(g){ return (g.hooks||[]).some(function(h){ return h.command && h.command.includes('mode-init'); }); });
+if (!ok) {
+  s.hooks.SessionStart.push({hooks:[{type:'command',command:'node \"'+home+'/.claude/hooks/mode-init.js\"',timeout:10,statusMessage:'Detecting session mode...'}]});
+  fs.writeFileSync(p, JSON.stringify(s, null, 2));
+  console.log('  ✓ mode-init hook wired into settings.json');
+} else { console.log('  ✓ mode-init already wired (skipped)'); }
+" || echo "  ⚠  Could not patch settings.json — add mode-init hook manually (see README)"
+else
+  echo "  ℹ  settings.json not found — run global-setup.sh again after first Claude Code launch"
+fi
 
 # ── Summary ─────────────────────────────────────────────────────
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
-echo "  ✓ Machina v2.0 setup complete"
+echo "  ✓ Machina v2.1.0 setup complete"
 echo ""
 echo "  Manual steps — run these inside a Claude Code session:"
 echo "  /plugin marketplace add obra/superpowers-marketplace"
 echo "  /plugin install superpowers@superpowers-marketplace"
 echo "  /plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill"
 echo "  /plugin install ui-ux-pro-max@ui-ux-pro-max-skill"
+echo "  /plugin marketplace add jarrodwatts/claude-hud"
+echo "  /plugin install claude-hud"
+echo "  /claude-hud:setup"
+echo ""
+echo "  For existing projects without .agent-profile, run once:"
+echo "  cd your-project && bash $REPO_ROOT/scripts/detect-profile.sh"
 echo ""
 echo "  Start your first Machina session:"
 echo "  cd your-project && claude"

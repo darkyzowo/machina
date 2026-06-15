@@ -23,6 +23,16 @@
             "statusMessage": "Loading caveman mode..."
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/hooks/mode-init.js\"",
+            "timeout": 10,
+            "statusMessage": "Detecting session mode..."
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
@@ -52,7 +62,7 @@
 
   "statusLine": {
     "type": "command",
-    "command": "bash \"$HOME/.claude/statusline.sh\""
+    "command": "node \"$HOME/.claude/plugins/claude-hud/dist/index.js\""
   },
 
   "enabledPlugins": {
