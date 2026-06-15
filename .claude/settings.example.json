@@ -1,0 +1,81 @@
+{
+  "_readme": [
+    "This is settings.example.json — a portable template for ~/.claude/settings.json.",
+    "Copy relevant blocks into your own settings.json. Do not copy this file directly.",
+    "Personal paths (hooks, additionalDirectories) must match YOUR system.",
+    "Windows (Git Bash): replace $HOME with C:/Users/YOUR_USERNAME",
+    "Caveman hooks (SessionStart, UserPromptSubmit) are installed automatically by caveman.",
+    "See README.md for full setup instructions."
+  ],
+
+  "env": {
+    "CAVEMAN_DEFAULT_MODE": "ultra"
+  },
+
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/hooks/caveman-activate.js\"",
+            "timeout": 5,
+            "statusMessage": "Loading caveman mode..."
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/hooks/caveman-mode-tracker.js\"",
+            "timeout": 5,
+            "statusMessage": "Tracking caveman mode..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PY=$(which python3 2>/dev/null || which python 2>/dev/null); FILE=$(\"$PY\" -c \"import sys,json; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('file_path',''))\" 2>/dev/null); if [[ \"$FILE\" == *.py ]] && [[ -f \"$FILE\" ]]; then \"$PY\" -m py_compile \"$FILE\" 2>&1 && echo \"✓ $FILE syntax OK\" || echo \"⚠️  SYNTAX WARNING: $FILE has errors — verify before committing\"; fi"
+          }
+        ]
+      }
+    ]
+  },
+
+  "statusLine": {
+    "type": "command",
+    "command": "bash \"$HOME/.claude/statusline.sh\""
+  },
+
+  "enabledPlugins": {
+    "superpowers@superpowers-marketplace": true,
+    "claude-mem@thedotmack": true
+  },
+
+  "extraKnownMarketplaces": {
+    "superpowers-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "obra/superpowers-marketplace"
+      }
+    },
+    "thedotmack": {
+      "source": {
+        "source": "github",
+        "repo": "thedotmack/claude-mem"
+      }
+    }
+  },
+
+  "effortLevel": "high",
+  "advisorModel": "opus",
+  "tui": "fullscreen"
+}

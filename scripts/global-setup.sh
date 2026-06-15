@@ -135,6 +135,34 @@ else
   warn "claude-mem not on PATH. Open a new terminal after phase 4, then run: claude-mem start"
 fi
 
+# ── Phase 6: copy statusline script ──────────────────────────────────────────
+log "phase 6 — installing HUD statusline"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+STATUSLINE_SRC="$REPO_ROOT/.claude/statusline.sh"
+STATUSLINE_DST="$CLAUDE_DIR/statusline.sh"
+
+if [ -f "$STATUSLINE_SRC" ]; then
+  cp "$STATUSLINE_SRC" "$STATUSLINE_DST"
+  chmod +x "$STATUSLINE_DST"
+  ok "copied statusline.sh → $HOME/.claude/statusline.sh"
+else
+  warn "statusline.sh not found in repo — skipping"
+fi
+
+echo
+echo "  ┌─ add this to ~/.claude/settings.json ───────────────────────────"
+echo "  │"
+echo "  │  \"statusLine\": {"
+echo "  │    \"type\": \"command\","
+echo "  │    \"command\": \"bash \\\"$HOME/.claude/statusline.sh\\\"\""
+echo "  │  },"
+echo "  │"
+echo "  │  Full template: $REPO_ROOT/.claude/settings.example.json"
+echo "  └──────────────────────────────────────────────────────────────────"
+echo
+warn "settings.json is never auto-modified — paste the block above manually."
+
 # ── Final report ──────────────────────────────────────────────────────────────
 echo
 log "final state"
@@ -143,12 +171,14 @@ echo "  $HOME/.claude/CLAUDE.md — last 6 lines:"
 tail -6 "$GLOBAL_MD" 2>/dev/null | sed 's/^/    /' || echo "    (not found)"
 echo
 echo "  $HOME/.claude/machina/rules.md — $(wc -w < "$MACHINA_DIR/rules.md") words"
+echo "  $HOME/.claude/statusline.sh    — $([ -f "$STATUSLINE_DST" ] && echo 'installed' || echo 'NOT installed')"
 echo
 echo "  Next steps:"
 echo "    1. Open a new terminal for PATH changes."
 echo "    2. claude doctor                        # confirm agent is healthy"
 echo "    3. Open Claude Code → /plugins         # should list superpowers"
-echo "    4. Verify repo URL in $HOME/.claude/machina/rules.md is $REPO_URL"
-echo "    5. Per-project: cd <project> && make bootstrap"
+echo "    4. Add statusLine block to ~/.claude/settings.json (shown above)"
+echo "    5. Verify repo URL in $HOME/.claude/machina/rules.md"
+echo "    6. Per-project: cd <project> && make bootstrap"
 echo
 ok "global setup complete — no project files created or modified."
