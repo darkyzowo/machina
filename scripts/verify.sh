@@ -48,7 +48,7 @@ echo "── Required: host runtime ──────────────�
 have git && ok "git" || fail "git missing"
 if have node; then
   NM="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null)"
-  [ "${NM:-0}" -ge 18 ] && ok "node $NM (>=18)" || fail "node $NM — need >=18"
+  [ "${NM:-0}" -ge 24 ] && ok "node $NM (>=24)" || fail "node $NM — need >=24 (required by agent-browser)"
 else
   warn "node absent (needed for npm installs and skills CLIs)"
 fi

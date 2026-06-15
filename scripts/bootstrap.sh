@@ -39,7 +39,7 @@ log "toolchain preflight"
 have git || die "git is required."
 if have node; then
   NM="$(node -p 'process.versions.node.split(".")[0]')"
-  [ "$NM" -ge 18 ] && log "node $NM ✓" || die "Node >=18 required (found $NM)."
+  [ "$NM" -ge 24 ] && log "node $NM ✓" || warn "Node 24+ required for agent-browser (found $NM). Update before running global-setup.sh."
 else
   warn "node not found — needed for npm-based installs and skills CLIs."
 fi
