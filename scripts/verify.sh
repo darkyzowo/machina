@@ -20,11 +20,12 @@ for f in \
   .gitignore                \
   .pre-commit-config.yaml   \
   .github/workflows/ci.yml  \
-  scripts/global-setup.sh   \
-  scripts/bootstrap.sh      \
-  scripts/detect-profile.sh \
-  scripts/verify.sh         \
-  scripts/audit-configs.sh  \
+  scripts/global-setup.sh      \
+  scripts/bootstrap.sh         \
+  scripts/detect-profile.sh    \
+  scripts/verify.sh            \
+  scripts/audit-configs.sh     \
+  scripts/dependency-pins.sh   \
   Makefile; do
   [ -f "$ROOT/$f" ] && ok "$f" || fail "$f MISSING"
 done

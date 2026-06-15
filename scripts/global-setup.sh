@@ -11,6 +11,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Load pinned dependency versions
+# shellcheck source=scripts/dependency-pins.sh
+source "$SCRIPT_DIR/dependency-pins.sh"
 MACHINA_DIR="$HOME/.claude/machina"
 CLAUDE_MD="$HOME/.claude/CLAUDE.md"
 CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
@@ -46,16 +50,16 @@ echo "  ✓ uv $(uv --version)"
 
 # ── §1 Memory engine ────────────────────────────────────────────
 echo ""
-echo "→ [1/7] Installing claude-mem..."
-npm install -g claude-mem
+echo "→ [1/7] Installing claude-mem@${CLAUDE_MEM_VERSION}..."
+npm install -g "claude-mem@${CLAUDE_MEM_VERSION}"
 claude-mem install
 npx claude-mem start &>/dev/null &
 echo "  ✓ claude-mem installed and worker backgrounded"
 
 # ── §2 Codebase graphing ────────────────────────────────────────
 echo ""
-echo "→ [2/7] Installing graphify (from canonical source)..."
-uv tool install git+https://github.com/safishamsi/graphify.git
+echo "→ [2/7] Installing graphify@${GRAPHIFY_PIN}..."
+uv tool install "git+https://github.com/safishamsi/graphify.git@${GRAPHIFY_PIN}"
 export PATH="$HOME/.local/bin:$PATH"
 echo "  ✓ graphify installed"
 echo "  ℹ  Add to your shell profile to persist:"
@@ -73,9 +77,9 @@ echo ""
 echo "→ [3c] Installing spec-kit (specify CLI) for standard/full profiles..."
 if command -v uv &>/dev/null; then
   uv tool install specify-cli \
-    --from 'git+https://github.com/github/spec-kit.git@v0.10.2' \
-    && echo "  ✓ specify-cli installed" \
-    || echo "  ⚠  specify-cli install failed — standard/full profiles need this. Retry: uv tool install specify-cli --from 'git+https://github.com/github/spec-kit.git@v0.10.2'"
+    --from "git+https://github.com/github/spec-kit.git@${SPECIFY_VERSION}" \
+    && echo "  ✓ specify-cli@${SPECIFY_VERSION} installed" \
+    || echo "  ⚠  specify-cli install failed — standard/full profiles need this. Retry: uv tool install specify-cli --from \"git+https://github.com/github/spec-kit.git@${SPECIFY_VERSION}\""
 else
   echo "  ⚠  uv not found — skipping spec-kit (install uv first, then re-run global-setup.sh)"
 fi
