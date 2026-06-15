@@ -169,6 +169,21 @@ your-project/
 
 ---
 
+## File precedence
+
+Per-project file load order (highest → lowest priority):
+
+| Priority | File | Purpose |
+|----------|------|---------|
+| 1 (highest) | `AGENT_INSTRUCTIONS.md` | Per-project behavioral overrides — **edit this** for project-specific rules. Prefix overrides with `OVERRIDE:` so they're visible in diffs. |
+| 2 | `CLAUDE.md` | Session bootstrap. Sources `AGENT_INSTRUCTIONS.md`. Copy from the Machina repo into your project; do not add rules directly here. |
+| 3 (lowest) | `~/.claude/machina/rules.md` | Global harness spec. Installed by `global-setup.sh`. Do not edit directly — update `rules.md` in the repo and re-run setup. |
+
+**Corollary:** to override a Machina rule for a specific project, add the override to
+`AGENT_INSTRUCTIONS.md` with an `OVERRIDE:` prefix. Never edit `rules.md` directly.
+
+---
+
 ## Repository contents
 
 | File | Purpose |
