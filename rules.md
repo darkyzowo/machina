@@ -109,6 +109,17 @@ After tests pass for any feature with a UI surface, this gate is **mandatory**.
 
 ### 3.1 Steps
 
+**Step 0 — Verify agent-browser is installed:**
+Run `agent-browser --version`. If the command fails:
+- Log: `⚠ agent-browser not installed — UX gate SKIPPED. Run global-setup.sh to install.`
+- Mark this feature as **SKIPPED** in handoff notes. SKIPPED ≠ PASSED.
+- Do not mark the feature done until the gate is retested after installation.
+
+**Step 0b — Verify dev server is responding:**
+Run `curl -s http://localhost:5173 -o /dev/null -w '%{http_code}'`. If response is not `200`:
+- Log: `⚠ Dev server not responding at localhost:5173 — UX gate SKIPPED.`
+- Same SKIPPED status applies.
+
 1. Ensure the dev server is running: `npm run dev`
 2. Open the app: `agent-browser open http://localhost:5173`
 3. Take an accessibility snapshot: `agent-browser snapshot`
