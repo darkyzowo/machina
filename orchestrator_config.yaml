@@ -23,7 +23,7 @@ versions:
   node_min: "18"
   python_min: "3.10"
   superpowers:  "5.1.0"    # obra/superpowers
-  claude_mem:   "12.3.8"   # thedotmack/claude-mem
+  claude_mem:   "13.6.0"   # thedotmack/claude-mem
   graphify_ref: "v3"        # safishamsi/graphify  (git tag)
   spec_kit_ref: "v0.10.2"   # github/spec-kit Specify CLI (git tag)
 
