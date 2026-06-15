@@ -107,6 +107,8 @@ ci_gates:
 
 # ── Spec-Kit Sequence ─────────────────────────────────────────
 # Standard and full profiles only.
+# specify-cli installed by scripts/global-setup.sh §3c (uv tool install specify-cli).
+# Command: specify. Verify install: have specify (see scripts/verify.sh).
 spec_kit_sequence:
   - command: "/speckit.constitution"
     description: "Establish project governing principles"

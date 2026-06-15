@@ -68,6 +68,18 @@ npm install -g agent-browser
 agent-browser install
 echo "  ✓ agent-browser installed with Chromium"
 
+# ── §3c spec-kit (specify CLI) ───────────────────────────────────────
+echo ""
+echo "→ [3c] Installing spec-kit (specify CLI) for standard/full profiles..."
+if command -v uv &>/dev/null; then
+  uv tool install specify-cli \
+    --from 'git+https://github.com/github/spec-kit.git@v0.10.2' \
+    && echo "  ✓ specify-cli installed" \
+    || echo "  ⚠  specify-cli install failed — standard/full profiles need this. Retry: uv tool install specify-cli --from 'git+https://github.com/github/spec-kit.git@v0.10.2'"
+else
+  echo "  ⚠  uv not found — skipping spec-kit (install uv first, then re-run global-setup.sh)"
+fi
+
 # Install agent-browser Claude Code skill
 echo ""
 echo "→ [3b] Installing agent-browser Claude Code skill..."
@@ -107,22 +119,26 @@ echo ""
 echo "→ [7/7] Installing Machina mode system..."
 
 mkdir -p "$HOME/.claude/hooks"
-cp "$REPO_ROOT/.claude/hooks/mode-init.js" "$HOME/.claude/hooks/mode-init.js"
-echo "  ✓ mode-init.js installed to ~/.claude/hooks/"
+cp "$REPO_ROOT/.claude/hooks/mode-init.js"         "$HOME/.claude/hooks/mode-init.js"
+cp "$REPO_ROOT/.claude/hooks/done-signal-guard.js" "$HOME/.claude/hooks/done-signal-guard.js"
+cp "$REPO_ROOT/.claude/hooks/pass-ceiling.js"      "$HOME/.claude/hooks/pass-ceiling.js"
+mkdir -p "$HOME/.claude/pass-counts"
+echo "  ✓ mode-init.js, done-signal-guard.js, pass-ceiling.js installed to ~/.claude/hooks/"
 
 mkdir -p "$HOME/.claude/commands"
-cp "$REPO_ROOT/.claude/commands/project.md" "$HOME/.claude/commands/project.md"
-cp "$REPO_ROOT/.claude/commands/casual.md" "$HOME/.claude/commands/casual.md"
-echo "  ✓ /project and /casual commands installed to ~/.claude/commands/"
+cp "$REPO_ROOT/.claude/commands/project.md"       "$HOME/.claude/commands/project.md"
+cp "$REPO_ROOT/.claude/commands/casual.md"        "$HOME/.claude/commands/casual.md"
+cp "$REPO_ROOT/.claude/commands/machina-reset.md" "$HOME/.claude/commands/machina-reset.md"
+echo "  ✓ /project, /casual, /machina-reset commands installed to ~/.claude/commands/"
 
 # Add mode comment to CLAUDE.md (rules injected by hook — no @-import needed)
 mkdir -p "$(dirname "$CLAUDE_MD")"
 touch "$CLAUDE_MD"
 grep -q "mode-init" "$CLAUDE_MD" \
-  || echo -e "\n# Machina — https://github.com/darkyzowo/machina\n# Rules injected by mode-init hook — project = full §0-§6, casual = §4 only\n# Switch mid-session: /project or /casual" >> "$CLAUDE_MD"
+  || echo -e "\n# Machina — https://github.com/darkyzowo/machina\n# Rules injected by mode-init hook — project = §0-§4/5/6 per profile, casual = §4 only\n# Switch mid-session: /project or /casual" >> "$CLAUDE_MD"
 echo "  ✓ CLAUDE.md updated (idempotent)"
 
-# Idempotent patch: add mode-init to SessionStart hooks in settings.json
+# Idempotent patch: wire all Machina hooks into settings.json
 SETTINGS="$HOME/.claude/settings.json"
 if [ -f "$SETTINGS" ]; then
   node -e "
@@ -130,14 +146,33 @@ const fs = require('fs'), home = process.env.HOME || process.env.USERPROFILE;
 const p = home + '/.claude/settings.json';
 const s = JSON.parse(fs.readFileSync(p, 'utf8'));
 if (!s.hooks) s.hooks = {};
+
+// SessionStart: mode-init
 if (!s.hooks.SessionStart) s.hooks.SessionStart = [];
-const ok = s.hooks.SessionStart.some(function(g){ return (g.hooks||[]).some(function(h){ return h.command && h.command.includes('mode-init'); }); });
-if (!ok) {
+const hasModeInit = s.hooks.SessionStart.some(function(g){ return (g.hooks||[]).some(function(h){ return h.command && h.command.includes('mode-init'); }); });
+if (!hasModeInit) {
   s.hooks.SessionStart.push({hooks:[{type:'command',command:'node \"'+home+'/.claude/hooks/mode-init.js\"',timeout:10,statusMessage:'Detecting session mode...'}]});
-  fs.writeFileSync(p, JSON.stringify(s, null, 2));
-  console.log('  ✓ mode-init hook wired into settings.json');
+  console.log('  ✓ mode-init wired into SessionStart');
 } else { console.log('  ✓ mode-init already wired (skipped)'); }
-" || echo "  ⚠  Could not patch settings.json — add mode-init hook manually (see README)"
+
+// PreToolUse: pass-ceiling
+if (!s.hooks.PreToolUse) s.hooks.PreToolUse = [];
+const hasPassCeiling = s.hooks.PreToolUse.some(function(g){ return (g.hooks||[]).some(function(h){ return h.command && h.command.includes('pass-ceiling'); }); });
+if (!hasPassCeiling) {
+  s.hooks.PreToolUse.push({matcher:'Edit|Write',hooks:[{type:'command',command:'node \"'+home+'/.claude/hooks/pass-ceiling.js\"',timeout:5,statusMessage:'Checking pass ceiling...'}]});
+  console.log('  ✓ pass-ceiling wired into PreToolUse');
+} else { console.log('  ✓ pass-ceiling already wired (skipped)'); }
+
+// PostToolUse: done-signal-guard
+if (!s.hooks.PostToolUse) s.hooks.PostToolUse = [];
+const hasDoneGuard = s.hooks.PostToolUse.some(function(g){ return (g.hooks||[]).some(function(h){ return h.command && h.command.includes('done-signal-guard'); }); });
+if (!hasDoneGuard) {
+  s.hooks.PostToolUse.push({matcher:'Edit|Write',hooks:[{type:'command',command:'node \"'+home+'/.claude/hooks/done-signal-guard.js\"',timeout:5,statusMessage:'Checking done-signal rule...'}]});
+  console.log('  ✓ done-signal-guard wired into PostToolUse');
+} else { console.log('  ✓ done-signal-guard already wired (skipped)'); }
+
+fs.writeFileSync(p, JSON.stringify(s, null, 2));
+" || echo "  ⚠  Could not patch settings.json — add hooks manually (see settings.example.json)"
 else
   echo "  ℹ  settings.json not found — run global-setup.sh again after first Claude Code launch"
 fi
