@@ -1,12 +1,14 @@
 # Machina
 
-**Autonomous, disciplined software synthesis for Claude Code.**
+**Autonomous, disciplined software synthesis for Claude Code and Cursor.**
 
-Machina is a global configuration harness for Claude Code that enforces
-engineering discipline by default: test-driven development, scaffold hygiene,
-layout architecture checkpoints, and a browser-based qualitative UX gate.
-It scales from hackathon prototypes to production codebases via a three-tier
-profile system that activates only what a project's size justifies.
+Machina is a configuration harness that enforces engineering discipline by
+default: test-driven development, scaffold hygiene, layout architecture
+checkpoints, and a browser-based qualitative UX gate. It scales from hackathon
+prototypes to production codebases via a three-tier profile system.
+
+Works with **Claude Code** (global hooks + slash commands) and **Cursor**
+(project-level rules + hooks via `install-cursor.sh`).
 
 ---
 
@@ -71,6 +73,58 @@ checklist must pass before the feature is marked done:
 
 ---
 
+## Quick start
+
+Pick your agent. Both paths share the same behavioral spec (`rules.md`,
+`AGENT_INSTRUCTIONS.md`) and `.agent-profile` tier system.
+
+### Claude Code
+
+```bash
+# Once per machine
+git clone https://github.com/darkyzowo/machina
+cd machina
+bash scripts/global-setup.sh
+
+# Once per project
+cd your-project
+cp /path/to/machina/CLAUDE.md .
+bash /path/to/machina/scripts/detect-profile.sh .
+claude
+```
+
+Inside Claude Code, install plugins once (see [Setup](#setup-claude-code) below).
+
+### Cursor
+
+```bash
+# Once per project (from your app repo — not the machina repo)
+cd your-project
+bash /path/to/machina/scripts/detect-profile.sh .
+bash /path/to/machina/scripts/install-cursor.sh .
+```
+
+Then **open `your-project` as the Cursor workspace root** (File → Open Folder),
+reload the window, enable **cursor-ide-browser** MCP, and start an Agent chat.
+
+Verify: ask the agent *"What is my active Machina profile and current phase?"*
+— expect your profile (e.g. `standard`) and phase `orient`.
+
+| Step | Claude Code | Cursor |
+|------|-------------|--------|
+| Global install | `global-setup.sh` → `~/.claude/` | Not required |
+| Per-project profile | `detect-profile.sh .` | `detect-profile.sh .` |
+| Per-project harness | Copy `CLAUDE.md` | `install-cursor.sh .` |
+| Enforcement | `~/.claude/hooks/` (blocks tools) | `.cursor/hooks/` (project-scoped) |
+| UX gate | `agent-browser` CLI | `cursor-ide-browser` MCP (primary) |
+| Spec workflow | `/speckit.*` slash commands | `specify init . --integration cursor` |
+| Task queue | `specs/**/tasks.md` | `specs/**/tasks.md` (same) |
+
+**Note:** Machina uses **spec-kit** artifacts (`specs/**/spec.md`, `plan.md`,
+`tasks.md`) — not a single `SPEC.md` file.
+
+---
+
 ## Requirements
 
 - Node.js 24+ (required by agent-browser)
@@ -81,7 +135,7 @@ checklist must pass before the feature is marked done:
 
 ---
 
-## Setup
+## Setup (Claude Code)
 
 ```bash
 git clone https://github.com/darkyzowo/machina
@@ -109,11 +163,56 @@ Then open a Claude Code session and run the plugin steps once:
 cd your-project
 git init
 cp /path/to/machina/CLAUDE.md .
-bash /path/to/machina/scripts/detect-profile.sh   # auto-detects lean/standard/full
+bash /path/to/machina/scripts/detect-profile.sh .
 claude
 ```
 
-For existing projects not bootstrapped with Machina, run `detect-profile.sh` once in the project root to create `.agent-profile`. Without it, mode-init falls back to project mode (full profile) if a `CLAUDE.md` is present, or casual mode otherwise.
+For existing projects, run `detect-profile.sh` with your project path (the `.`
+must be your app directory, not the machina repo):
+
+```bash
+bash /path/to/machina/scripts/detect-profile.sh /path/to/your-project
+```
+
+---
+
+## Cursor
+
+Machina's Claude Code enforcement (`~/.claude/hooks/`, slash commands) does **not**
+apply inside Cursor automatically. Use the **project-level** integration instead —
+it never modifies `~/.claude` or `~/.cursor`.
+
+```bash
+cd your-project
+bash /path/to/machina/scripts/detect-profile.sh .
+bash /path/to/machina/scripts/install-cursor.sh .
+# or: make -C /path/to/machina cursor-install TARGET=/path/to/your-project
+```
+
+**Critical:** Open `your-project` as the **workspace root** in Cursor. Machina
+rules and hooks load from the project `.cursor/` directory — not from a parent
+folder or multi-root workspace unless that project is the root.
+
+Then:
+
+1. **Reload window** (`Ctrl+Shift+P` → Developer: Reload Window) so hooks load.
+2. Enable **cursor-ide-browser** MCP for the qualitative UX gate.
+3. **Standard/full profile:** `specify init . --integration cursor` for spec-kit
+   artifacts (`specs/**/spec.md`, `plan.md`, `tasks.md`).
+4. **Reset pass ceiling** after human review: `node .cursor/hooks/machina-reset.js`.
+
+| Claude Code | Cursor equivalent |
+|-------------|-------------------|
+| `mode-init.js` (SessionStart) | `machina-session-init.js` + `.cursor/rules/machina-integration.mdc` |
+| `pass-ceiling.js` (PreToolUse) | `machina-pass-ceiling.js` on `Write\|StrReplace` |
+| `done-signal-guard.js` (PostToolUse) | `machina-done-signal.js` |
+| `/machina-reset` | `node .cursor/hooks/machina-reset.js` |
+| `agent-browser` CLI | `cursor-ide-browser` MCP (primary) |
+| `/speckit.*` | spec-kit after `specify init . --integration cursor` |
+
+Casual mode in Cursor: tell the agent `casual mode` in chat (no `/casual` slash command).
+
+See `templates/cursor/README.md` for hook details and verification steps.
 
 ---
 
@@ -161,10 +260,19 @@ persistent project configuration.
     karpathy-guidelines/ ← karpathy coding principles
 
 your-project/
-  CLAUDE.md              ← loads AGENT_INSTRUCTIONS.md for per-project context
+  CLAUDE.md              ← loads AGENT_INSTRUCTIONS.md (Claude Code)
+  AGENTS.md              ← cross-agent entry (Cursor, Codex, etc.)
   AGENT_INSTRUCTIONS.md  ← project-specific overrides (optional)
   .agent-profile         ← lean | standard | full (written by detect-profile.sh)
-  orchestrator_config.yaml ← model routing and profile definitions
+  .cursor/               ← Cursor only (installed by install-cursor.sh)
+    rules/machina-integration.mdc
+    hooks.json
+    hooks/machina-session-init.js
+    hooks/machina-pass-ceiling.js
+    hooks/machina-done-signal.js
+    hooks/machina-reset.js
+  .machina/              ← Cursor phase state + pass counters (gitignored)
+  orchestrator_config.yaml ← model routing and profile definitions (optional in app repos)
 ```
 
 ---
@@ -196,6 +304,8 @@ Per-project file load order (highest → lowest priority):
 | `scripts/dependency-pins.sh` | Pinned versions for all Machina-managed dependencies |
 | `scripts/detect-profile.sh` | Auto-detects lean/standard/full for a project |
 | `scripts/bootstrap.sh` | Per-project initialisation |
+| `scripts/install-cursor.sh` | Per-project Cursor rules + hooks (never touches `~/.cursor`) |
+| `templates/cursor/` | Source template for `.cursor/` and `.machina/` |
 | `.claude/hooks/mode-init.js` | SessionStart hook — profile-aware rules injection |
 | `.claude/hooks/done-signal-guard.js` | PostToolUse hook — done-signal rule reminder |
 | `.claude/hooks/pass-ceiling.js` | PreToolUse hook — 5-pass ceiling counter |
@@ -206,6 +316,17 @@ Per-project file load order (highest → lowest priority):
 ---
 
 ## Changelog
+
+### v2.3.0 — Cursor integration (project-scoped)
+- New `templates/cursor/` — rules, hooks, `.machina/state.json`
+- New `scripts/install-cursor.sh` and `make cursor-install TARGET=dir`
+- `machina-session-init.js` — sessionStart profile injection (port of `mode-init.js`)
+- Pass ceiling + done-signal hooks match on `Write|StrReplace` (not `Write` alone)
+- State machine rule: one-phase-per-turn RED gate, verifier artifacts, MCP-first UX gate
+- `detect-profile.sh` accepts target directory arg (fixes writing to machina repo by mistake)
+- UX gate: `cursor-ide-browser` MCP primary; `agent-browser` CLI fallback
+- `AGENTS.md` documents Cursor install; Claude Code paths unchanged
+- `verify.sh` checks full Cursor template scaffold
 
 ### v2.2.0 — Mechanical enforcement + audit hardening
 - Profile-aware section injection: `mode-init.js` now reads `.agent-profile` and injects only §0–§4 (lean), §0–§5 (standard), or §0–§6 (full). §0 always active.

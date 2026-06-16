@@ -6,6 +6,7 @@ graphify-out/          # graphify output: graph.json, html, cache
 **/chromadb/
 .claude-mem/           # claude-mem local data
 .agent-profile         # local profile state — regenerate with: make profile
+.machina/              # cursor phase state + pass counters — regenerate with install-cursor
 
 # ── Secrets ───────────────────────────────────────────────────────────────────
 .env

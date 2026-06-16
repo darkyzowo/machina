@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": ".cursor/hooks/machina-session-init.js",
+        "timeout": 5
+      }
+    ],
+    "preToolUse": [
+      {
+        "matcher": "Write|StrReplace",
+        "command": ".cursor/hooks/machina-pass-ceiling.js",
+        "timeout": 5
+      }
+    ],
+    "postToolUse": [
+      {
+        "matcher": "Write|StrReplace",
+        "command": ".cursor/hooks/machina-done-signal.js",
+        "timeout": 5
+      }
+    ]
+  }
+}

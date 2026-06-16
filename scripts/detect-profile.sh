@@ -7,12 +7,17 @@
 #   standard  + spec-kit + caveman. Multi-day projects, team repos.
 #   full      + claude-mem + graphify. Production codebases, 500+ files.
 #
-# Output: .agent-profile (one word) in the repo root.
+# Output: .agent-profile (one word) in the target project root.
 # The agent reads this at session start (~15 tokens).
+#
+# Usage:
+#   bash scripts/detect-profile.sh              # evaluate current directory
+#   bash scripts/detect-profile.sh /path/to/app # evaluate a specific project
 # =============================================================================
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TARGET="${1:-.}"
+ROOT="$(cd "$TARGET" && pwd)"
 OUT="$ROOT/.agent-profile"
 
 log()  { printf '\033[1;34m[profile]\033[0m %s\n' "$*"; }

@@ -23,6 +23,11 @@ Follow `AGENT_INSTRUCTIONS.md` exactly — it is the single source of truth.
 ## Agent-specific notes
 
 - **Codex:** slash commands use `$` prefix (e.g. `$brainstorm`, not `/brainstorm`).
-- **Cursor:** `.cursorrules` files are audited read-only; never auto-edited.
+- **Cursor:** Install project-level integration with
+  `bash /path/to/machina/scripts/install-cursor.sh` (or `make cursor-install`
+  from the machina repo against your project path). This copies `.cursor/rules/`,
+  `.cursor/hooks/`, and `.machina/state.json` into **your project** — it never
+  modifies `~/.cursor` or global configs. Legacy `.cursorrules` and existing
+  `~/.cursor/rules/` are audited read-only via `make audit`.
 - **Gemini CLI / OpenCode:** `/speckit.*` commands require spec-kit init
   (`specify init . --integration <agent>`).

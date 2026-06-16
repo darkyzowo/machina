@@ -26,12 +26,25 @@ for f in \
   scripts/verify.sh            \
   scripts/audit-configs.sh     \
   scripts/dependency-pins.sh   \
+  scripts/install-cursor.sh    \
   Makefile; do
   [ -f "$ROOT/$f" ] && ok "$f" || fail "$f MISSING"
 done
 
 echo
-echo "── Required: version pins ────────────────────────────────────────────"
+echo "── Required: Cursor integration template ─────────────────────────────"
+for f in \
+  templates/cursor/.cursor/rules/machina-integration.mdc \
+  templates/cursor/.cursor/hooks.json \
+  templates/cursor/.cursor/hooks/machina-pass-ceiling.js \
+  templates/cursor/.cursor/hooks/machina-done-signal.js \
+  templates/cursor/.cursor/hooks/machina-session-init.js \
+  templates/cursor/.cursor/hooks/machina-reset.js \
+  templates/cursor/.machina/state.json; do
+  [ -f "$ROOT/$f" ] && ok "$f" || fail "$f MISSING"
+done
+
+echo
 if grep -qE ':[[:space:]]*"?VERIFY"?' "$ROOT/orchestrator_config.yaml" 2>/dev/null; then
   fail "unresolved VERIFY pins in orchestrator_config.yaml"
 else

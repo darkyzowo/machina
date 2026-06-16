@@ -1,0 +1,144 @@
+---
+description: Machina harness for Cursor — profile-gated TDD, state machine, scaffold hygiene, UX gate
+alwaysApply: true
+---
+
+# Machina Integration (Cursor)
+
+`AGENT_INSTRUCTIONS.md` + `rules.md` semantics are canonical. This rule bridges
+Claude Code mechanics (`~/.claude/hooks/`, slash commands) into Cursor.
+
+## 0. Session bootstrap (first action every task)
+
+1. Read `.agent-profile` → `lean` | `standard` | `full` (default: `lean`).
+   Apply only the sections for that tier:
+   - `lean` → §0–§4
+   - `standard` → §0–§5
+   - `full` → §0–§6
+2. Ensure `.machina/state.json` exists:
+   ```json
+   { "phase": "orient", "current_task": null, "pass_count": 0, "ux_gate": "pending", "profile": "lean" }
+   ```
+3. **Task source (not SPEC.md):** Machina uses **spec-kit** artifacts, not a single
+   `SPEC.md`. Read `specs/**/tasks.md` checkboxes if present; else decompose from
+   the user request into one task at a time. `standard`/`full`: if user wants a
+   large feature and no `specs/` tree exists, HALT — ask to run
+   `specify init . --integration cursor` before coding.
+4. **Casual mode** only when the user explicitly says `casual mode` — suspend
+   scaffold hygiene, TDD, UX gate, pre-merge. Keep surgical-changes discipline.
+
+## 1. State machine (phases are gates, not labels)
+
+```
+orient → layout_checkpoint? → scaffold_hygiene? → red → green → refactor → ci_gates → ux_gate? → task_complete
+```
+
+Before each transition: update `.machina/state.json` → `phase`.
+Log verifier evidence under `.machina/verifiers/<task-slug>/` (stdout snippets,
+screenshot paths, exit codes). **Prose attestation without artifacts = violation.**
+
+| Phase | Trigger | Exit (external tool only) |
+|-------|---------|---------------------------|
+| `layout_checkpoint` | Multi-view UI | Nav model (page-swap/sidebar/tabs/modal) + one-sentence justification written to state |
+| `scaffold_hygiene` | After scaffold cmd | HTTP 200 on detected dev port + `browser_snapshot` or screenshot of clean blank slate |
+| `red` | Before any implementation | Failing test exists; `npm test` output shows RED for **this** task |
+| `green` | After red logged | Same test passes in `npm test` output |
+| `refactor` | After green | Full suite still green |
+| `ci_gates` | Before task done | `npm test`, `npm run typecheck`, `npm run lint`, `npm run build` — all exit 0 |
+| `ux_gate` | UI surface touched | Checklist §4 with MCP/browser evidence |
+
+### RED backpressure (non-negotiable)
+
+- **One phase per agent turn** for `red` → `green`: write failing test, run tests,
+  paste RED output, **stop**. Next turn: minimal implementation only.
+- **Forbidden in the same turn:** creating/editing a test file AND an implementation
+  file (component, handler, store, route).
+- **Forbidden before RED:** marking `green`, `ci_gates`, or `task_complete`.
+
+### Pass ceiling (mechanical)
+
+`.cursor/hooks/machina-pass-ceiling.js` counts `Write` **and** `StrReplace`.
+At 5 edits: halt, report state, await human. Reset: `node .cursor/hooks/machina-reset.js`.
+
+### Done signal
+
+Never mark work complete without pasted verifier output. Hooks remind on every edit;
+they do not replace running verifiers.
+
+## 2. TDD (bifurcated)
+
+**Logic TDD** — utils, stores, API, pure functions: unit test → RED → minimal code → GREEN.
+
+**Component Behavioral TDD** — React/UI:
+- Contract = user-visible behavior from spec/tasks.
+- ✅ `getByRole('button', { name: 'Save' })`, visible text after user action
+- ❌ implementation details, `wrapper.state()`, test-id-only selectors
+
+On failure: one-sentence hypothesis → minimal instrumentation → fix → full suite.
+After 3 failed hypotheses on the same failure: HALT, report to human.
+
+## 3. Scaffold hygiene (before first feature file)
+
+1. Read generated `src/**/*.{tsx,jsx,css}`, `index.html`
+2. Remove: `color-scheme`, global `text-align: center` on root, demo classes
+   (`.card`, `.counter`), placeholder content
+3. Detect dev port from `vite.config.*`, `package.json` scripts, or running process —
+   **never assume 5173**
+4. `curl`/HTTP check → 200, then browser evidence of blank slate
+
+## 4. Qualitative UX gate (mandatory for UI; SKIPPED ≠ PASSED)
+
+**Primary:** `cursor-ide-browser` MCP — `browser_navigate`, `browser_snapshot`,
+`browser_take_screenshot`, `browser_resize`, `browser_cdp` (console).
+
+**Fallback:** `agent-browser` CLI only if MCP unavailable AND
+`agent-browser --version` succeeds (requires Node 24+, global install via machina
+`global-setup.sh`; often missing on Windows without Git Bash setup).
+
+### Procedure
+
+1. Preflight: dev server HTTP 200 on detected port
+2. `browser_navigate` → app URL
+3. `browser_resize` 375×812 → snapshot + screenshot
+4. Navigate to feature; run primary flow
+5. `browser_cdp` → console errors (paste output)
+6. Desktop 1280×800 — repeat snapshot
+7. Dark mode: CDP `prefers-color-scheme: dark` OR log `SKIPPED` + reason
+
+### Checklist (each item needs cited evidence)
+
+- [ ] Text readable (light)
+- [ ] Text readable (dark or SKIPPED+reason)
+- [ ] Buttons/links have visible labels
+- [ ] Inputs have visible borders
+- [ ] No horizontal overflow at 375px
+- [ ] Primary flow: zero console errors
+- [ ] Keyboard-reachable interactive elements
+
+If no browser tool works: `ux_gate: "SKIPPED"` in state — **do not** mark task done.
+
+## 5. Surgical changes (always on)
+
+Edit only files required by the current task. No drive-by format, rename, or speculative abstractions.
+
+## 6. Pre-merge (`standard` + `full`)
+
+CI green, UX gate passed (not SKIPPED), read-only security review, no TODOs in diff.
+
+## 7. Memory (`full` only)
+
+claude-mem MCP: `search` → `timeline` → `get_observations`. graphify (>500 files): subgraph only.
+
+## 8. Claude Code → Cursor mapping
+
+| Machina (Claude Code) | Cursor equivalent |
+|-----------------------|-------------------|
+| `mode-init.js` SessionStart | This rule + `.agent-profile` + optional `sessionStart` hook |
+| `pass-ceiling.js` PreToolUse | `.cursor/hooks/machina-pass-ceiling.js` on Write\|StrReplace |
+| `done-signal-guard.js` PostToolUse | `.cursor/hooks/machina-done-signal.js` |
+| `agent-browser snapshot` | `browser_snapshot` MCP (preferred) |
+| `/speckit.tasks` | `specs/**/tasks.md` checkboxes |
+| `/machina-reset` | `node .cursor/hooks/machina-reset.js` |
+| `/project`, `/casual` | User says "project mode" / "casual mode" explicitly |
+| `orchestrator_config.yaml` model routing | **Inert** in single-agent Cursor — ignore |
+| superpowers slash commands | **Unavailable** — use this rule + hooks instead |

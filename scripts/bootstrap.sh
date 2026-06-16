@@ -101,6 +101,11 @@ echo "  │"
 echo "  │  After any uv tool install:"
 echo "  │    uv tool update-shell   # fixes PATH"
 echo "  │    source ~/.zshrc        # or ~/.bashrc / ~/.config/fish/config.fish"
+echo "  │"
+echo "  │  CURSOR (project-level — never touches ~/.cursor):"
+echo "  │    cd your-app && bash $ROOT/scripts/detect-profile.sh ."
+echo "  │    bash $ROOT/scripts/install-cursor.sh ."
+echo "  │    specify init . --integration cursor   # standard/full only"
 echo "  └──────────────────────────────────────────────────────────────────"
 echo
 

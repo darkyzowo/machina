@@ -1,5 +1,7 @@
-.PHONY: help global-setup bootstrap profile verify audit hooks ci-local
+.PHONY: help global-setup bootstrap profile verify audit hooks ci-local cursor-install
 .DEFAULT_GOAL := help
+
+TARGET ?= .
 
 help:           ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -16,8 +18,8 @@ global-setup:   ## One-time: set up ~/.claude/machina/ and update global CLAUDE.
 bootstrap:      ## Per-project: hygiene gates + profile + verify + human gate
 	@bash scripts/bootstrap.sh
 
-profile:        ## Detect or re-detect project profile (lean / standard / full)
-	@bash scripts/detect-profile.sh
+profile:        ## Detect or re-detect project profile (TARGET=dir, default .)
+	@bash scripts/detect-profile.sh $(TARGET)
 
 verify:         ## Preflight: confirm nothing is missing
 	@bash scripts/verify.sh
@@ -30,3 +32,6 @@ hooks:          ## Install pre-commit hooks (requires git init first)
 
 ci-local:       ## Run all gates locally before pushing
 	@pre-commit run --all-files
+
+cursor-install: ## Per-project: install .cursor/ Machina rules + hooks (TARGET=dir, default .)
+	@bash scripts/install-cursor.sh $(TARGET)
