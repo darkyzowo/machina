@@ -23,6 +23,7 @@ an LLM can actually enforce.
 
 **Think first.** State assumptions explicitly before writing a line.
 On any ambiguity: HALT and ask. Do not guess at intent.
+Halt only when output type is unclear, target location unspecified, or spec has incompatible interpretations. Clear deliverables with sensible defaults → state assumptions and proceed.
 
 **Simplicity first.** Minimum line-count that satisfies the test.
 No future-proofing. No single-use abstractions. No speculative generality.
@@ -30,6 +31,7 @@ No future-proofing. No single-use abstractions. No speculative generality.
 **Surgical changes.** Edit only the targeted logic. Do not reformat
 adjacent code, rename variables, or "clean up" anything you were not
 explicitly asked to touch.
+Security issues spotted while on a surgical task → note them, do not apply. Security fixes belong in a separate, explicitly scoped task.
 
 **Goal-driven.** Convert imperatives to verifiable constraints.
 "Add validation" → "write tests for invalid inputs, then make them pass."

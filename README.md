@@ -317,6 +317,11 @@ Per-project file load order (highest → lowest priority):
 
 ## Changelog
 
+### v2.4.0 — Rule precision and conflict resolution
+- **§1.1 precision threshold:** Ambiguity halt now fires only when (a) output type is unclear, (b) target location is unspecified with incompatible choices, or (c) missing spec causes incompatible implementations. Clear deliverables with sensible defaults → state assumptions and proceed. Prevents over-halting on well-formed tasks.
+- **§4 security rule precedence:** Security improvements spotted outside the task's explicit scope must be noted (not applied) and deferred to a separate security task. §4 surgical mode takes precedence over passive security-pattern detection. Resolves the conflict between "surgical changes only" and passive security rule firing.
+- `AGENT_INSTRUCTIONS.md`, `casual.md`, `templates/cursor/.cursor/rules/machina-integration.mdc` updated to mirror both changes.
+
 ### v2.3.0 — Cursor integration (project-scoped)
 - New `templates/cursor/` — rules, hooks, `.machina/state.json`
 - New `scripts/install-cursor.sh` and `make cursor-install TARGET=dir`

@@ -120,6 +120,7 @@ If no browser tool works: `ux_gate: "SKIPPED"` in state — **do not** mark task
 ## 5. Surgical changes (always on)
 
 Edit only files required by the current task. No drive-by format, rename, or speculative abstractions.
+Security issues spotted outside task scope → note them, do not apply. Security fixes = separate, explicitly scoped task.
 
 ## 6. Pre-merge (`standard` + `full`)
 

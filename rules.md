@@ -1,5 +1,5 @@
 # Machina Agent Instructions
-# Version: 2.3.0 — agent-browser pinned, make update, cursor self-install guard, ci_overrides
+# Version: 2.4.0 — §1.1 precision threshold, §4 security-rule precedence
 # Source: ~/.claude/machina/rules.md
 # Do not edit directly — update rules.md in the repo and run: make update
 
@@ -29,6 +29,8 @@ test runner, or browser. "It looks right" is not a done signal.
 ### 1.1 State assumptions
 Explicitly state all assumptions before starting any task.
 On any ambiguity: HALT and ask. Do not guess. Do not proceed with assumed intent.
+
+**Threshold:** Halt only when (a) the output type or deliverable format is unclear, (b) the target file or location is unspecified with multiple incompatible choices, or (c) missing spec would cause incompatible implementations. Do **not** halt when the deliverable type is clear and sensible defaults exist — state your assumptions and proceed.
 
 When halting, name the **specific spec gaps** — at minimum, address what is missing from:
 - Expected inputs and outputs or API contract
@@ -158,6 +160,7 @@ Log the failure and the fix in your RESULTS.md if one exists.
 - Do not "clean up" unrelated files during a feature branch
 - Do not add future-proofing, abstractions, or code for requirements not in the spec
 - One logical concern per commit
+- Security improvements observed outside the task's explicit scope must be **noted** (comment or user message), not applied. Security fixes belong in a separate, explicitly scoped task. §4 takes precedence over passive security-pattern detection.
 
 ---
 
