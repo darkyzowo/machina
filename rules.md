@@ -30,6 +30,15 @@ test runner, or browser. "It looks right" is not a done signal.
 Explicitly state all assumptions before starting any task.
 On any ambiguity: HALT and ask. Do not guess. Do not proceed with assumed intent.
 
+When halting, name the **specific spec gaps** — at minimum, address what is missing from:
+- Expected inputs and outputs or API contract
+- Page size, endpoint format, or data shape (for data features)
+- UI model: numbered pagination, infinite scroll, cursor-based, etc.
+- Auth context: who owns this resource, how is the session available
+- Edge cases the spec is silent on
+
+Do not substitute environmental blockers (missing file paths, tooling not installed) for spec clarification. Fix blockers silently or ask separately — never let them stand in for spec questions.
+
 ### 1.2 Layout Architecture Checkpoint *(multi-view apps only)*
 
 Before writing any component in an app with more than one view:
