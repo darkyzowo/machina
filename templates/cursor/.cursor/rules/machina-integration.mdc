@@ -44,7 +44,7 @@ screenshot paths, exit codes). **Prose attestation without artifacts = violation
 | `red` | Before any implementation | Failing test exists; `npm test` output shows RED for **this** task |
 | `green` | After red logged | Same test passes in `npm test` output |
 | `refactor` | After green | Full suite still green |
-| `ci_gates` | Before task done | `npm test`, `npm run typecheck`, `npm run lint`, `npm run build` — all exit 0 |
+| `ci_gates` | Before task done | `npm test`, `npm run typecheck`, `npm run lint`, `npm run build` — all exit 0 (JS/TS default; override in `AGENT_INSTRUCTIONS.md` for other stacks) |
 | `ux_gate` | UI surface touched | Checklist §4 with MCP/browser evidence |
 
 ### RED backpressure (non-negotiable)

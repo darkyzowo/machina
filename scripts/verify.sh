@@ -4,6 +4,8 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/dependency-pins.sh
+source "$ROOT/scripts/dependency-pins.sh"
 PASS=0; FAIL=0; WARN=0
 
 ok()   { printf '  \033[1;32m✓\033[0m %s\n' "$*"; PASS=$((PASS+1)); }
@@ -27,6 +29,7 @@ for f in \
   scripts/audit-configs.sh     \
   scripts/dependency-pins.sh   \
   scripts/install-cursor.sh    \
+  scripts/update.sh            \
   Makefile; do
   [ -f "$ROOT/$f" ] && ok "$f" || fail "$f MISSING"
 done
@@ -86,7 +89,7 @@ if [[ "$PROFILE" == "standard" || "$PROFILE" == "full" ]]; then
   have specify && ok "specify" || warn "specify absent — run: uv tool install specify-cli ..."
 fi
 if [[ "$PROFILE" == "full" ]]; then
-  have claude-mem && ok "claude-mem" || warn "claude-mem absent — run: npx claude-mem@12.3.8 install"
+  have claude-mem && ok "claude-mem" || warn "claude-mem absent — run: npm install -g claude-mem@${CLAUDE_MEM_VERSION} && claude-mem install"
   have graphify   && ok "graphify"   || warn "graphify absent — run: uv tool install git+...@v3"
 fi
 

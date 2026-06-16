@@ -1,4 +1,4 @@
-.PHONY: help global-setup bootstrap profile verify audit hooks ci-local cursor-install
+.PHONY: help global-setup update bootstrap profile verify audit hooks ci-local cursor-install
 .DEFAULT_GOAL := help
 
 TARGET ?= .
@@ -14,6 +14,9 @@ help:           ## Show available commands
 
 global-setup:   ## One-time: set up ~/.claude/machina/ and update global CLAUDE.md
 	@bash scripts/global-setup.sh
+
+update:         ## Update installed rules/hooks without reinstalling all tools
+	@bash scripts/update.sh
 
 bootstrap:      ## Per-project: hygiene gates + profile + verify + human gate
 	@bash scripts/bootstrap.sh

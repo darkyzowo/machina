@@ -9,3 +9,4 @@ export GRAPHIFY_PIN="v3"              # update to commit hash when v4 ships
 export SPECIFY_VERSION="v0.10.2"
 export CLAUDE_MEM_VERSION="13.6.0"
 export SUPERPOWERS_VERSION="5.1.0"
+export AGENT_BROWSER_VERSION="0.27.3"

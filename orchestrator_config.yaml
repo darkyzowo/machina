@@ -1,9 +1,9 @@
 # ═══════════════════════════════════════════════════════════════════
-# Machina Orchestrator Configuration v2.0
+# Machina Orchestrator Configuration v2.3
 # Source: orchestrator_config.yaml
 # ═══════════════════════════════════════════════════════════════════
 
-version: "2.0.0"
+version: "2.3.0"
 
 # ── Model Routing ───────────────────────────────────────────────
 # In single-agent Claude Code sessions, the executing model is set
@@ -81,6 +81,13 @@ profiles:
 
 # ── CI Gates ────────────────────────────────────────────────────
 # All profiles run these gates before marking any task done.
+# LANGUAGE ASSUMPTION: defaults are Node/TypeScript. For other stacks,
+# add ci_overrides to your project's AGENT_INSTRUCTIONS.md:
+#
+#   OVERRIDE: ci_gates.required:
+#     - command: "pytest"        # Python
+#     - command: "go test ./..."  # Go
+#     - command: "cargo test"    # Rust
 ci_gates:
   required:
     - command: "npm test"

@@ -1,7 +1,7 @@
 # Machina Agent Instructions
-# Version: 2.2.0 — Profile-aware injection + mechanical enforcement hooks
+# Version: 2.3.0 — agent-browser pinned, make update, cursor self-install guard, ci_overrides
 # Source: ~/.claude/machina/rules.md
-# Do not edit directly — update rules.md in the repo and re-run global-setup.sh
+# Do not edit directly — update rules.md in the repo and run: make update
 
 ---
 

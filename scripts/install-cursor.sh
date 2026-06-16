@@ -25,6 +25,7 @@ die()  { printf '\033[1;31m[abort]\033[0m %s\n' "$*" >&2; exit 1; }
 
 [ -d "$TEMPLATE" ] || die "templates/cursor not found at $TEMPLATE"
 [ "$TARGET" != "/" ] || die "refusing to install into filesystem root."
+[ "$TARGET" != "$REPO_ROOT" ] || die "refusing to install into the machina repo itself. Pass your project path: bash scripts/install-cursor.sh /path/to/your-project"
 
 copy_file() {
   local src="$1" dst="$2"

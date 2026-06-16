@@ -12,6 +12,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/dependency-pins.sh
+source "$ROOT/scripts/dependency-pins.sh"
 CFG="$ROOT/orchestrator_config.yaml"
 
 log()  { printf '\033[1;34m[bootstrap]\033[0m %s\n' "$*"; }
@@ -93,7 +95,7 @@ fi
 if [[ "$PROFILE" == "full" ]]; then
 echo "  │"
 echo "  │  FULL ONLY:"
-echo "  │    npx claude-mem@12.3.8 install"
+echo "  │    npm install -g claude-mem@${CLAUDE_MEM_VERSION} && claude-mem install"
 echo "  │    claude-mem start"
 echo "  │    uv tool install 'git+https://github.com/safishamsi/graphify.git@v3'"
 fi

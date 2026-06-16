@@ -327,6 +327,12 @@ Per-project file load order (highest → lowest priority):
 - UX gate: `cursor-ide-browser` MCP primary; `agent-browser` CLI fallback
 - `AGENTS.md` documents Cursor install; Claude Code paths unchanged
 - `verify.sh` checks full Cursor template scaffold
+- `dependency-pins.sh`: added `AGENT_BROWSER_VERSION=0.27.3` (was unpinned)
+- `global-setup.sh`: agent-browser install now uses pinned version
+- `install-cursor.sh`: self-install guard — refuses `TARGET == REPO_ROOT`
+- New `scripts/update.sh` + `make update` — diff and apply installed files without full reinstall
+- `orchestrator_config.yaml`: ci_overrides comment with Python/Go/Rust override examples
+- `verify.sh` + `bootstrap.sh`: source `dependency-pins.sh` — stale hardcoded `claude-mem@12.3.8` → `${CLAUDE_MEM_VERSION}`
 
 ### v2.2.0 — Mechanical enforcement + audit hardening
 - Profile-aware section injection: `mode-init.js` now reads `.agent-profile` and injects only §0–§4 (lean), §0–§5 (standard), or §0–§6 (full). §0 always active.

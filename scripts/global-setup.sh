@@ -67,10 +67,10 @@ echo "     export PATH=\"\$HOME/.local/bin:\$PATH\""
 
 # ── §3 Browser automation — UX gate ─────────────────────────────
 echo ""
-echo "→ [3/7] Installing agent-browser..."
-npm install -g agent-browser
+echo "→ [3/7] Installing agent-browser@${AGENT_BROWSER_VERSION}..."
+npm install -g "agent-browser@${AGENT_BROWSER_VERSION}"
 agent-browser install
-echo "  ✓ agent-browser installed with Chromium"
+echo "  ✓ agent-browser@${AGENT_BROWSER_VERSION} installed with Chromium"
 
 # ── §3c spec-kit (specify CLI) ───────────────────────────────────────
 echo ""
@@ -184,7 +184,7 @@ fi
 # ── Summary ─────────────────────────────────────────────────────
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
-echo "  ✓ Machina v2.1.0 setup complete"
+echo "  ✓ Machina v2.3.0 setup complete"
 echo ""
 echo "  Manual steps — run these inside a Claude Code session:"
 echo "  /plugin marketplace add obra/superpowers-marketplace"
