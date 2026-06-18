@@ -1,5 +1,5 @@
 # Machina Agent Instructions
-# Version: 2.5.0 — §1.4 security surface checkpoint, §4 HALT exceptions, §4.1 security exit gate
+# Version: 2.5.1 — §4.1 sanitization method checkpoint, §5 HTTP header specificity, /security-review clarification
 # Source: ~/.claude/machina/rules.md
 # Do not edit directly — update rules.md in the repo and run: make update
 
@@ -218,12 +218,13 @@ Before committing any diff that touches an API route, auth flow, file handler, L
 **Output Safety**
 - [ ] LLM output is not rendered raw to a browser (XSS / prompt injection pivot risk)
 - [ ] LLM output passed to a database or downstream API is treated as untrusted and sanitized
+- [ ] LLM output sanitization method documented (e.g. "DOMPurify before render", "parameterized query + allowlist") — confirms implementation matches §1.4 plan
 - [ ] All new packages verified to exist on the package registry — hallucinated package names create slopsquatting supply chain attack vectors
 
 **Secrets**
 - [ ] No secrets, API keys, credentials, or connection strings appear anywhere in the diff
 
-**Before first merge of any branch:** run `/security-review` and clear all CRITICAL and HIGH findings before merging, regardless of profile tier.
+**Before first merge of any branch:** run `/security-review` and clear all CRITICAL and HIGH findings before merging, regardless of profile tier. `/security-review` is a Claude Code skill — invoke it by typing `/security-review` in your Claude Code session. It runs a read-only security audit against the current diff and open files, outputting findings by severity.
 
 **On any unchecked item in Auth, Rate Limiting, or Secrets:** do not mark the task done. Halt and report.
 
@@ -240,8 +241,14 @@ Before merging any feature branch, all of the following must be true:
 - [ ] Qualitative UX gate passed (if feature has UI surface)
 - [ ] §4.1 Security Exit Gate cleared for every commit in this branch
 - [ ] `/security-review` triggered and cleared
-- [ ] HTTP security headers configured: `Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`
-- [ ] `npm audit` / `pip audit` run — no unaddressed CRITICAL or HIGH severity findings
+- [ ] HTTP security headers configured with valid values:
+  - `Strict-Transport-Security: max-age=31536000` (or higher)
+  - `X-Frame-Options: DENY`
+  - `X-Content-Type-Options: nosniff`
+  - `Content-Security-Policy` — policy defined; no bare `unsafe-inline` or `unsafe-eval` (use hash/nonce instead)
+  - `Referrer-Policy: strict-origin-when-cross-origin` (or stricter)
+  - Verify: manual header inspection or automated tooling (e.g. `npm run check-headers`)
+- [ ] `npm audit` / `pip audit` run — no unaddressed CRITICAL or HIGH findings; MEDIUM findings evaluated and either patched or documented with justification in the commit message
 - [ ] No TODO comments in the diff
 
 ---
