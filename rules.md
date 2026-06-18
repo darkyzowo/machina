@@ -1,5 +1,5 @@
 # Machina Agent Instructions
-# Version: 2.4.0 — §1.1 precision threshold, §4 security-rule precedence
+# Version: 2.5.0 — §1.4 security surface checkpoint, §4 HALT exceptions, §4.1 security exit gate
 # Source: ~/.claude/machina/rules.md
 # Do not edit directly — update rules.md in the repo and run: make update
 
@@ -11,9 +11,11 @@ Read `.agent-profile` from the project root. Apply rules for your tier:
 
 | Profile | Active sections |
 |---------|----------------|
-| lean    | §1 §2 §3 §4    |
-| standard | §1 §2 §3 §4 §5 |
-| full    | §1 §2 §3 §4 §5 §6 |
+| lean    | §1 §2 §3 §4 §4.1 |
+| standard | §1 §2 §3 §4 §4.1 §5 |
+| full    | §1 §2 §3 §4 §4.1 §5 §6 |
+
+**§4.1 is active on all profiles.** Security cannot be gated behind profile tier.
 
 **Pass ceiling:** 5 recursive passes on any single task before halting for
 human review. No exceptions.
@@ -69,6 +71,27 @@ After any scaffold command (Vite, CRA, Next.js, Remix, etc.) and
 5. Run `npm run dev` — confirm the page renders as a visually clean blank slate
 6. **If it does not render clean: fix scaffold output before writing any features**
    A broken starting point compounds into broken features.
+
+### 1.4 Security Surface Checkpoint *(all profiles — any API endpoint, file upload, auth route, or LLM-backed feature)*
+
+Before writing the first line of any handler, state answers to these six questions. Spec is silent → state the default and proceed. This takes two minutes and prevents the top vulnerability classes found in AI-assisted codebases.
+
+Research basis: 65% of AI-built production apps contain at least one critical vulnerability; no LLM generates HTTP security headers, CORS policy, or rate limiting by default (OWASP LLM Top 10, CSA 2025).
+
+1. **Auth** — Who can call this? Authenticated only / specific role / public? Any public write endpoint must be explicitly justified. Never rely on Next.js middleware as the sole auth enforcement point — middleware can be bypassed via header injection (CVE-2025-29927); auth must also be enforced at the route/handler layer.
+
+2. **Rate limits** — State the limit: requests/minute per user AND per IP.
+   - Default if spec is silent: 20 req/min per user, 60 req/min per IP.
+   - LLM-backed endpoints additionally require: max calls per user per day.
+   - Endpoints with financial cost surfaces (LLM, third-party APIs, file processing): if cost is unbounded, **HALT** and define a spend ceiling before proceeding. LLM APIs without rate limiting are vulnerable to Denial of Wallet (DoW) attacks — adversaries exploit per-token pricing to impose unbounded financial damage (OWASP LLM10:2025 Unbounded Consumption).
+
+3. **Input constraints** — For file uploads: max size (default: 10 MB), explicit MIME type allowlist (not blocklist). For all payloads: max field lengths. No unbounded inputs. Serverless functions billed per invocation are especially vulnerable to variable-length input flooding — reading an unbounded file into memory before size-checking causes OOM crashes in serverless runtimes.
+
+4. **Cost surface** — For any LLM call: `max_tokens` per call, max calls per user per day, hard spend ceiling in USD. State these before writing the handler. A fire-and-forget background job over N rows with no per-user cap is a DoW vulnerability regardless of intent.
+
+5. **Trust boundary** — Does any output from this handler reach a browser, database, shell command, or downstream API? If yes: treat that output as untrusted. State the sanitization step. This applies to LLM output as much as user input — indirect prompt injection via uploaded files, retrieved URLs, or RAG content can weaponize model output even when the user prompt is clean (OWASP LLM01:2025 Prompt Injection).
+
+6. **Ownership** — Any handler that reads or mutates data must scope the query to the session user. Correct pattern: `WHERE id = ? AND user_id = auth.uid()`. State this explicitly before writing the query. Return 404 (not 403) for unauthorised resource access — never reveal record existence to unauthorised callers.
 
 ---
 
@@ -162,6 +185,48 @@ Log the failure and the fix in your RESULTS.md if one exists.
 - One logical concern per commit
 - Security improvements observed outside the task's explicit scope must be **noted** (comment or user message), not applied. Security fixes belong in a separate, explicitly scoped task. §4 takes precedence over passive security-pattern detection.
 
+  **Exception — the following are HALT items, not notes.** Stop the current task, report the finding, and do not proceed until the human explicitly scopes a fix or approves an inline correction:
+  - Missing auth check on any write, delete, or admin endpoint
+  - Missing rate limit on any LLM-backed, file upload, or public write endpoint
+  - Hardcoded secret, API key, credential, or connection string anywhere in source code
+  - String concatenation used in any SQL query or shell command with user-supplied input
+  - Missing file size or MIME type validation on any upload handler
+  - LLM output rendered raw to a browser or passed unsanitized to a database or shell command
+  - Next.js middleware used as the sole auth enforcement point with no route/handler-level check
+
+---
+
+## §4.1 — Security Exit Gate *(all profiles — before every commit)*
+
+Before committing any diff that touches an API route, auth flow, file handler, LLM call, or data query, self-attest the following. Every item must be true or explicitly noted as out of scope with a reason.
+
+**Auth & Access Control**
+- [ ] Every new endpoint has an auth check at the route/handler layer — not middleware alone
+- [ ] All data queries are scoped to the session user — no cross-user leakage possible
+- [ ] Admin-only paths have a role check in addition to authentication
+
+**Rate Limiting & Cost**
+- [ ] Every new endpoint has rate limiting — per-user AND per-IP
+- [ ] Every LLM call has a bounded `max_tokens` and a per-user call budget
+- [ ] No financial cost surface is unbounded — spend ceiling defined or inherited from config
+
+**Input Validation**
+- [ ] All file uploads validate MIME type against an explicit allowlist before processing
+- [ ] All file uploads enforce a size limit before reading file contents into memory
+- [ ] No user-supplied input is interpolated into SQL queries or shell commands
+
+**Output Safety**
+- [ ] LLM output is not rendered raw to a browser (XSS / prompt injection pivot risk)
+- [ ] LLM output passed to a database or downstream API is treated as untrusted and sanitized
+- [ ] All new packages verified to exist on the package registry — hallucinated package names create slopsquatting supply chain attack vectors
+
+**Secrets**
+- [ ] No secrets, API keys, credentials, or connection strings appear anywhere in the diff
+
+**Before first merge of any branch:** run `/security-review` and clear all CRITICAL and HIGH findings before merging, regardless of profile tier.
+
+**On any unchecked item in Auth, Rate Limiting, or Secrets:** do not mark the task done. Halt and report.
+
 ---
 
 ## §5 — Pre-Merge Checklist *(standard + full profiles only)*
@@ -173,7 +238,10 @@ Before merging any feature branch, all of the following must be true:
 - [ ] Zero lint errors: `npm run lint`
 - [ ] Production build succeeds: `npm run build`
 - [ ] Qualitative UX gate passed (if feature has UI surface)
+- [ ] §4.1 Security Exit Gate cleared for every commit in this branch
 - [ ] `/security-review` triggered and cleared
+- [ ] HTTP security headers configured: `Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`
+- [ ] `npm audit` / `pip audit` run — no unaddressed CRITICAL or HIGH severity findings
 - [ ] No TODO comments in the diff
 
 ---
