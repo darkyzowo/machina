@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -26,6 +27,7 @@ jobs:
       - name: gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
 
   verify:
@@ -34,11 +36,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ── Node / TypeScript ──────────────────────────────────────────────
+      # ── Node / TypeScript ────────────────────────────────────────────
       - name: Setup Node
         if: ${{ hashFiles('package.json') != '' }}
         uses: actions/setup-node@v4
-        with: { node-version: "20", cache: "npm" }
+        with: { node-version: "24", cache: "npm" }
 
       - name: npm ci
         if: ${{ hashFiles('package-lock.json') != '' }}
@@ -64,7 +66,7 @@ jobs:
         if: ${{ hashFiles('package-lock.json') != '' }}
         run: npm audit --audit-level=high
 
-      # ── Python ────────────────────────────────────────────────────────
+      # ── Python ──────────────────────────────────────────────────────
       - name: Setup Python
         if: ${{ hashFiles('pyproject.toml', 'requirements.txt') != '' }}
         uses: actions/setup-python@v5
