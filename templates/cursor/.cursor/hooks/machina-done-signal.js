@@ -5,6 +5,8 @@
 const fs = require('fs');
 const path = require('path');
 
+if (process.env.CURSOR_VERSION || process.env.CURSOR_PLUGIN_ROOT) process.exit(0);
+
 let input = {};
 if (!process.stdin.isTTY) {
   try {

@@ -1,40 +1,53 @@
-.PHONY: help global-setup update bootstrap profile verify audit hooks ci-local cursor-install
+.PHONY: help global-setup profile-setup update bootstrap profile verify audit hooks ci-local cursor-install check-pins harness-test report
 .DEFAULT_GOAL := help
 
 TARGET ?= .
 
 help:           ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-	  awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-14s\033[0m %s\n",$$1,$$2}'
+	  awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n",$$1,$$2}'
 	@echo
 	@echo "  Order of operations:"
-	@echo "    1. make global-setup   (once, globally)"
-	@echo "    2. make bootstrap      (once per project)"
-	@echo "    3. make verify         (anytime — preflight check)"
+	@echo "    1. make global-setup    (once per machine — hooks only)"
+	@echo "    2. make bootstrap       (once per project — .machina/)"
+	@echo "    3. make profile-setup   (profile-gated tools)"
+	@echo "    4. make verify          (preflight)"
 
-global-setup:   ## One-time: set up ~/.claude/machina/ and update global CLAUDE.md
+global-setup:   ## One-time: harness hooks + commands to ~/.claude/
 	@bash scripts/global-setup.sh
 
-update:         ## Update installed rules/hooks without reinstalling all tools
+profile-setup:  ## Install tools for .agent-profile (PROFILE=lean|standard|full)
+	@bash scripts/profile-setup.sh $(TARGET)
+
+update:         ## Update installed harness files without reinstalling tools
 	@bash scripts/update.sh
 
-bootstrap:      ## Per-project: hygiene gates + profile + verify + human gate
+bootstrap:      ## Per-project: .machina/ scaffold + profile + verify
 	@bash scripts/bootstrap.sh
 
-profile:        ## Detect or re-detect project profile (TARGET=dir, default .)
+profile:        ## Detect or re-detect internal profile (TARGET=dir)
 	@bash scripts/detect-profile.sh $(TARGET)
 
-verify:         ## Preflight: confirm nothing is missing
+verify:         ## Fail-loud preflight check
 	@bash scripts/verify.sh
 
-audit:          ## Read-only audit of ~/.claude, ~/.codex, ~/.cursor configs
+report:         ## Telemetry summary from .machina/telemetry.jsonl
+	@bash scripts/machina-report.sh $(TARGET)
+
+check-pins:     ## Print PINNED vs LATEST for managed dependencies
+	@bash scripts/check-pins.sh
+
+harness-test:   ## Run harness acceptance tests (phase-gate, secret-guard)
+	@bash scripts/test-harness.sh
+
+audit:          ## Read-only audit of ~/.claude configs
 	@bash scripts/audit-configs.sh
 
-hooks:          ## Install pre-commit hooks (requires git init first)
+hooks:          ## Install pre-commit hooks
 	@pre-commit install && pre-commit install --hook-type commit-msg
 
-ci-local:       ## Run all gates locally before pushing
+ci-local:       ## Run all gates locally
 	@pre-commit run --all-files
 
-cursor-install: ## Per-project: install .cursor/ Machina rules + hooks (TARGET=dir, default .)
+cursor-install: ## PARKED — Cursor integration frozen at v2.5
 	@bash scripts/install-cursor.sh $(TARGET)

@@ -1,93 +1,52 @@
 # ═══════════════════════════════════════════════════════════════════
-# Machina Orchestrator Configuration v2.3
-# Source: orchestrator_config.yaml
+# Machina Orchestrator Configuration v3.0
 # ═══════════════════════════════════════════════════════════════════
 
-version: "2.3.0"
+version: "3.0.0"
 
-# ── Model Routing ───────────────────────────────────────────────
-# In single-agent Claude Code sessions, the executing model is set
-# by the tool. These assignments apply to multi-agent orchestration.
-model_routing:
-  strategic:
-    model: claude-opus-4-8
-    use_for:
-      - system_architecture
-      - specification_generation
-      - deep_algorithmic_logic
-      - security_audit
-      - complex_debugging
-  execution:
-    model: claude-sonnet-4-6
-    use_for:
-      - boilerplate_synthesis
-      - unit_test_generation
-      - localized_logic_implementation
-      - component_scaffolding
-  rapid:
-    model: claude-haiku-4-5
-    use_for:
-      - simple_transformations
-      - formatting_tasks
+# ── ASPIRATIONAL: Model Routing ───────────────────────────────────
+# Not enforced in single-agent Claude Code sessions. Reserved for future
+# multi-agent orchestration. Do not document as an active feature.
+# model_routing:
+#   strategic: claude-opus-4-8
+#   execution: claude-sonnet-4-6
+#   rapid: claude-haiku-4-5
 
-# ── Profiles ─────────────────────────────────────────────────────
-# Written to .agent-profile at bootstrap by scripts/detect-profile.sh
+# ── Internal profiles (tool install only — user-facing control is rigor dial) ─
 profiles:
   lean:
-    description: "Hackathons, weekend projects, repos < 50 files"
-    use_for:
-      - hackathon builds
-      - quick prototypes
-      - greenfield projects with a fixed spec
+    description: "Hackathons, repos < 50 files"
     tools_enabled:
-      - superpowers        # TDD enforcement + git worktree isolation
-      - agent_browser      # qualitative UX gate — mandatory for UI work
-      - ci_gates           # lint, typecheck, test, build
+      - superpowers
+      - agent_browser
+      - ci_gates
     tools_disabled:
-      - claude_mem         # overhead > benefit at this scale
-      - graphify           # deploy on repos > 500 files only
-      - spec_kit           # ceremony exceeds value for small projects
-      - caveman            # compression overhead on short sessions
+      - claude_mem
+      - graphify
+      - spec_kit
 
   standard:
-    description: "Multi-day projects, medium complexity"
-    use_for:
-      - week-long projects
-      - mid-sized applications with evolving specs
+    description: "Multi-day projects"
     tools_enabled:
       - superpowers
       - agent_browser
       - spec_kit
-      - caveman
       - ci_gates
     tools_disabled:
       - claude_mem
       - graphify
 
   full:
-    description: "Production codebases, repos > 500 files"
-    use_for:
-      - large production systems
-      - legacy codebase onboarding
-      - multi-week engineering projects
+    description: "Production, repos > 500 files"
     tools_enabled:
       - superpowers
       - agent_browser
       - spec_kit
-      - caveman
       - claude_mem
       - graphify
       - ci_gates
 
-# ── CI Gates ────────────────────────────────────────────────────
-# All profiles run these gates before marking any task done.
-# LANGUAGE ASSUMPTION: defaults are Node/TypeScript. For other stacks,
-# add ci_overrides to your project's AGENT_INSTRUCTIONS.md:
-#
-#   OVERRIDE: ci_gates.required:
-#     - command: "pytest"        # Python
-#     - command: "go test ./..."  # Go
-#     - command: "cargo test"    # Rust
+# ── CI Gates ─────────────────────────────────────────────────────
 ci_gates:
   required:
     - command: "npm test"
@@ -101,31 +60,36 @@ ci_gates:
   ui_gate:
     tool: agent-browser
     trigger: "any feature with a UI surface"
-    commands:
-      - "agent-browser open http://localhost:5173"
-      - "agent-browser snapshot"
-    checklist:
-      - text_readable_light_mode
-      - text_readable_dark_mode
-      - buttons_have_visible_labels
-      - inputs_have_visible_borders_and_placeholders
-      - layout_no_overflow_at_375px
-      - primary_flow_no_console_errors
 
-# ── Spec-Kit Sequence ─────────────────────────────────────────
-# Standard and full profiles only.
-# specify-cli installed by scripts/global-setup.sh §3c (uv tool install specify-cli).
-# Command: specify. Verify install: have specify (see scripts/verify.sh).
+# ── Spec-Kit Sequence (rigor mode harness phases) ─────────────────
 spec_kit_sequence:
   - command: "/speckit.constitution"
+    phase: speckit_constitution
     description: "Establish project governing principles"
   - command: "/speckit.specify"
-    description: "Define exact system requirements and user stories"
+    phase: speckit_specify
+    description: "Define requirements — blocks impl until spec.md exists"
+  - command: "/security-spec"
+    phase: security_spec
+    description: "Abuse cases + trust boundaries — blocks impl until security.md exists"
   - command: "/speckit.plan"
-    description: >
-      Map architecture to tech stack. MANDATORY checkpoint: explicitly
-      define and justify the layout architecture (sidebar / tabs / modal /
-      page-swap) before generating tasks. Default to the model that keeps
-      the most context visible to the user.
+    phase: speckit_plan
+    description: "Architecture + layout checkpoint"
   - command: "/speckit.tasks"
-    description: "Generate verifiable micro-tasks for the superpowers harness"
+    phase: speckit_tasks
+    description: "Verifiable micro-tasks"
+
+# ── Harness phases (mechanical — phase-gate.js) ─────────────────
+harness_phases:
+  - orient
+  - speckit_constitution
+  - speckit_specify
+  - security_spec
+  - speckit_plan
+  - speckit_tasks
+  - red
+  - green
+  - refactor
+  - ci_gates
+  - ux_gate
+  - task_complete

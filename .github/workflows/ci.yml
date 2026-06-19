@@ -85,3 +85,45 @@ jobs:
           pip install ruff pytest --quiet || true
           ruff check . || true
           pytest -q    || true
+
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Spec abuse-cases gate
+        run: bash scripts/check-spec-security.sh .
+
+      - name: Lockfile enforcement (JS)
+        if: ${{ hashFiles('package.json') != '' && hashFiles('package-lock.json') == '' }}
+        run: |
+          echo "package.json without package-lock.json — use npm ci with a lockfile"
+          exit 1
+
+      - name: Setup Node for SAST
+        if: ${{ hashFiles('package.json', '**/*.js', '**/*.ts') != '' }}
+        uses: actions/setup-node@v4
+        with: { node-version: "20" }
+
+      - name: Semgrep SAST
+        if: ${{ hashFiles('**/*.js', '**/*.ts', '**/*.py', '**/*.go') != '' }}
+        run: |
+          pip install semgrep --quiet
+          semgrep --config auto --error --quiet . || semgrep --config auto --error .
+
+      - name: Dependency audit (npm)
+        if: ${{ hashFiles('package-lock.json') != '' }}
+        run: |
+          npm ci
+          npm audit --audit-level=high
+
+  harness-test:
+    name: Harness acceptance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "24" }
+      - name: Run harness tests
+        run: bash scripts/test-harness.sh

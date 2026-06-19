@@ -7,6 +7,8 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
+if (process.env.CURSOR_VERSION || process.env.CURSOR_PLUGIN_ROOT) process.exit(0);
+
 let input = {};
 if (!process.stdin.isTTY) {
   try {
@@ -70,6 +72,15 @@ counter.count += 1;
 
 try {
   fs.writeFileSync(counterFile, JSON.stringify(counter), 'utf8');
+} catch (_) {}
+
+try {
+  const stateFile = path.join(projectRoot, '.machina', 'state.json');
+  const state = fs.existsSync(stateFile)
+    ? JSON.parse(fs.readFileSync(stateFile, 'utf8'))
+    : {};
+  state.pass_count = counter.count;
+  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2) + '\n', 'utf8');
 } catch (_) {}
 
 if (counter.count >= 5) {

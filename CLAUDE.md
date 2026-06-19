@@ -1,23 +1,25 @@
 # CLAUDE.md
 
-Read `AGENT_INSTRUCTIONS.md` for the full behavioural spec. This file is
-a session bootstrap only — keep it small, it loads every time.
+Read `AGENT_INSTRUCTIONS.md` for project overrides. Session bootstrap only.
 
-## Active profile
+## Machina v3 harness
 
-Read `.agent-profile` (one word). If absent, assume `lean` and say so.
+State: `.machina/state.json` | Commands: `/machina status` | `rigor` | `ship` | `next` | `reset`
 
-| Profile    | Tools available                                          |
-|------------|----------------------------------------------------------|
-| `lean`     | CI + superpowers                                         |
-| `standard` | + spec-kit (`/speckit.*` commands) + caveman             |
-| `full`     | + claude-mem (memory MCP) + graphify (code graph MCP)    |
+| Rigor | Behavior |
+|-------|----------|
+| ship (default) | Surgical edits + security floors |
+| rigor | Full loop — phase-gate blocks impl in RED |
 
-Do not use tools outside your active profile.
+Full spec on demand: `/machina rules`
 
-## Hard limits (repeated because they are load-bearing)
+## Internal profile (tool install only)
 
-- TDD mandatory: failing test first → wait for real red → minimal code to green → refactor.
-- Surgical changes only. State assumptions. HALT on ambiguity.
-- Never install tools, route models, or touch user configs.
-- Stop at 5 passes. Every merge gated by CI + dep audit + secret scan.
+Read `.agent-profile` — if absent, assume `lean`. Run `make profile-setup` for tools.
+
+## Hard limits
+
+- External verification before done — not self-grade.
+- 5 edits then halt — `/machina reset` after human review.
+- Security spec before security-relevant impl (rigor mode — mechanically gated).
+- Never install tools or edit user configs from the agent.

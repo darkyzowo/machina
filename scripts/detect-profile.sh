@@ -52,7 +52,7 @@ else
   REC="lean"
 fi
 
-log "recommended: $REC"
+log "recommended: $REC (internal tool tier — user rigor: /machina ship | rigor)"
 
 # ── Confirm or override ───────────────────────────────────────────────────────
 if [ "${CI:-0}" = "1" ] || [ "${NONINTERACTIVE:-0}" = "1" ]; then

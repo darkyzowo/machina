@@ -5,6 +5,8 @@
 const fs = require('fs');
 const path = require('path');
 
+if (process.env.CURSOR_VERSION || process.env.CURSOR_PLUGIN_ROOT) process.exit(0);
+
 function findProjectRoot(start) {
   let dir = path.resolve(start || process.cwd());
   for (let i = 0; i < 25; i++) {

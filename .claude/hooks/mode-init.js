@@ -84,7 +84,7 @@ if (mode === 'project') {
   process.stdout.write(
     '## MACHINA — CASUAL MODE ACTIVE\n\n' +
     'Lean ruleset only. Active: §4 surgical changes (scope changes only, no reformatting, no over-engineering).\n' +
-    'Suspended: §1.3 scaffold hygiene, §2 TDD, §3 UX gate, §5 pre-merge checklist.\n' +
+    'Suspended: §1.2 security spec, §1.4 scaffold hygiene, §2 TDD, §3 UX gate, §5 pre-merge checklist.\n' +
     'RTK + Caveman ultra remain active. Switch to project rules mid-session: /project'
   );
 }

@@ -1,8 +1,10 @@
 {
   "phase": "orient",
+  "rigor": "ship",
   "current_task": null,
   "pass_count": 0,
   "ux_gate": "pending",
   "security_spec": "pending",
-  "profile": "lean"
+  "profile": "lean",
+  "ui_touched": false
 }

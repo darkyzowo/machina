@@ -1,33 +1,30 @@
 # AGENTS.md
 
-Cross-agent entry point (Codex, Cursor, Gemini CLI, OpenCode).
-Claude Code reads `CLAUDE.md`; all other agents read this file.
-Both point to the same canonical source.
+Cross-agent entry point. **Machina v3 targets Claude Code** as the primary harness.
 
-## Active profile
+## Claude Code
 
-Read `.agent-profile` (one word: `lean` / `standard` / `full`).
-Use only tools installed for your active profile. If absent, assume `lean`.
+```bash
+make global-setup && make bootstrap && make profile-setup
+```
 
-## Rules
+Harness: `.machina/state.json` + `~/.claude/hooks/`. Commands: `/machina rigor` | `ship` | `status`.
 
-Follow `AGENT_INSTRUCTIONS.md` exactly — it is the single source of truth.
+Read `AGENT_INSTRUCTIONS.md` and `harness.md` for behavioral spec.
+
+## Active profile (internal — tool install only)
+
+Read `.agent-profile` (`lean` / `standard` / `full`). User-facing control is the **rigor dial**:
+`/machina ship` (fast) or `/machina rigor` (full loop).
+
+## Cursor / Codex / others
+
+Cursor integration is **parked** at v2.5 — see `templates/cursor/README.md`.
+Codex: use `$` prefix for slash commands per tool conventions.
 
 ## Hard limits
 
-- TDD: red → green → refactor. Surgical changes. HALT on ambiguity.
-- Never install tooling, route models, or edit user configs.
-- 5-pass recursion ceiling, then mandatory human review.
-- Merges gated: CI + dep audit + secret scan.
-
-## Agent-specific notes
-
-- **Codex:** slash commands use `$` prefix (e.g. `$brainstorm`, not `/brainstorm`).
-- **Cursor:** Install project-level integration with
-  `bash /path/to/machina/scripts/install-cursor.sh` (or `make cursor-install`
-  from the machina repo against your project path). This copies `.cursor/rules/`,
-  `.cursor/hooks/`, and `.machina/state.json` into **your project** — it never
-  modifies `~/.cursor` or global configs. Legacy `.cursorrules` and existing
-  `~/.cursor/rules/` are audited read-only via `make audit`.
-- **Gemini CLI / OpenCode:** `/speckit.*` commands require spec-kit init
-  (`specify init . --integration <agent>`).
+- External verification before done
+- 5-pass ceiling — `/machina reset` after human review
+- Security spec gated in rigor mode
+- Never install tooling or edit user configs from the agent

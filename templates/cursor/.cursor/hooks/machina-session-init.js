@@ -5,6 +5,8 @@
 const fs = require('fs');
 const path = require('path');
 
+if (process.env.CURSOR_VERSION || process.env.CURSOR_PLUGIN_ROOT) process.exit(0);
+
 function findProjectRoot(start) {
   let dir = path.resolve(start || process.cwd());
   for (let i = 0; i < 25; i++) {
@@ -40,23 +42,24 @@ const stateFile = path.join(machinaDir, 'state.json');
 
 try {
   fs.mkdirSync(machinaDir, { recursive: true });
-  if (!fs.existsSync(stateFile)) {
-    fs.writeFileSync(
-      stateFile,
-      JSON.stringify(
-        {
-          phase: 'orient',
-          current_task: null,
-          pass_count: 0,
-          ux_gate: 'pending',
-          profile,
-        },
-        null,
-        2
-      ) + '\n',
-      'utf8'
-    );
+  const defaults = {
+    phase: 'orient',
+    current_task: null,
+    pass_count: 0,
+    ux_gate: 'pending',
+    security_spec: 'pending',
+    profile,
+  };
+  let state = {};
+  if (fs.existsSync(stateFile)) {
+    try {
+      state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+    } catch (_) {
+      state = {};
+    }
   }
+  state = { ...defaults, ...state, profile };
+  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2) + '\n', 'utf8');
 } catch (_) {}
 
 const sections = {
@@ -68,6 +71,6 @@ const sections = {
 const context =
   `MACHINA PROJECT MODE [${profile}] — active sections ${sections[profile] || sections.lean}.\n` +
   `State: .machina/state.json | Tasks: specs/**/tasks.md (spec-kit, not SPEC.md).\n` +
-  `RED gate: one phase per turn. Pass ceiling: 5 Write/StrReplace edits.`;
+  `Security spec before implementation. RED gate: one phase per turn. Pass ceiling: 5 Write/StrReplace edits.`;
 
 process.stdout.write(JSON.stringify({ additional_context: context }));

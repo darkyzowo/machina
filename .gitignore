@@ -1,12 +1,19 @@
 # ── Agent memory and graph artifacts (must not commit) ───────────────────────
-graphify-out/          # graphify output: graph.json, html, cache
-**/.graphify_python    # graphify python env pointer
-*.db                   # SQLite episodic memory stores
-**/chroma/             # ChromaDB vector stores
+# graphify output: graph.json, html, cache
+graphify-out/
+# graphify python env pointer
+**/.graphify_python
+# SQLite episodic memory stores
+*.db
+# ChromaDB vector stores
+**/chroma/
 **/chromadb/
-.claude-mem/           # claude-mem local data
-.agent-profile         # local profile state — regenerate with: make profile
-.machina/              # cursor phase state + pass counters — regenerate with install-cursor
+# claude-mem local data
+.claude-mem/
+# local profile state — regenerate with: make profile
+.agent-profile
+# cursor phase state + pass counters — regenerate with: make bootstrap
+.machina/
 
 # ── Secrets ───────────────────────────────────────────────────────────────────
 .env

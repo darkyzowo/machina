@@ -1,6 +1,6 @@
 ---
 description: Machina harness for Cursor — profile-gated TDD, state machine, scaffold hygiene, UX gate
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Machina Integration (Cursor)
@@ -17,7 +17,7 @@ Claude Code mechanics (`~/.claude/hooks/`, slash commands) into Cursor.
    - `full` → §0–§6
 2. Ensure `.machina/state.json` exists:
    ```json
-   { "phase": "orient", "current_task": null, "pass_count": 0, "ux_gate": "pending", "profile": "lean" }
+   { "phase": "orient", "current_task": null, "pass_count": 0, "ux_gate": "pending", "security_spec": "pending", "profile": "lean" }
    ```
 3. **Task source (not SPEC.md):** Machina uses **spec-kit** artifacts, not a single
    `SPEC.md`. Read `specs/**/tasks.md` checkboxes if present; else decompose from
@@ -25,12 +25,13 @@ Claude Code mechanics (`~/.claude/hooks/`, slash commands) into Cursor.
    large feature and no `specs/` tree exists, HALT — ask to run
    `specify init . --integration cursor` before coding.
 4. **Casual mode** only when the user explicitly says `casual mode` — suspend
-   scaffold hygiene, TDD, UX gate, pre-merge. Keep surgical-changes discipline.
+   security spec, scaffold hygiene, TDD, UX gate, pre-merge. Keep
+   surgical-changes discipline.
 
 ## 1. State machine (phases are gates, not labels)
 
 ```
-orient → layout_checkpoint? → scaffold_hygiene? → red → green → refactor → ci_gates → ux_gate? → task_complete
+orient → security_spec? → layout_checkpoint? → scaffold_hygiene? → red → green → refactor → ci_gates → ux_gate? → task_complete
 ```
 
 Before each transition: update `.machina/state.json` → `phase`.
@@ -39,6 +40,7 @@ screenshot paths, exit codes). **Prose attestation without artifacts = violation
 
 | Phase | Trigger | Exit (external tool only) |
 |-------|---------|---------------------------|
+| `security_spec` | Security-relevant surface changes | `specs/<feature>/security.md` or `SECURITY_SPEC.md` exists, or security scope explicitly marked none |
 | `layout_checkpoint` | Multi-view UI | Nav model (page-swap/sidebar/tabs/modal) + one-sentence justification written to state |
 | `scaffold_hygiene` | After scaffold cmd | HTTP 200 on detected dev port + `browser_snapshot` or screenshot of clean blank slate |
 | `red` | Before any implementation | Failing test exists; `npm test` output shows RED for **this** task |
@@ -65,7 +67,25 @@ At 5 edits: halt, report state, await human. Reset: `node .cursor/hooks/machina-
 Never mark work complete without pasted verifier output. Hooks remind on every edit;
 they do not replace running verifiers.
 
-## 2. TDD (bifurcated)
+## 2. Security spec checkpoint
+
+Before implementation that changes auth, authorization, sessions, persistence,
+user input, file handling, network calls, webhooks, background jobs,
+dependencies, secrets/config, agent tools, or deployment behavior:
+
+- Write `specs/<feature>/security.md` when a spec-kit feature directory exists;
+  otherwise write `SECURITY_SPEC.md`.
+- Cover assets, trust boundaries, authn/authz, validation/encoding, secrets,
+  dependency/supply-chain changes, abuse cases, and required security tests.
+- If no security-relevant surface changed, state:
+  `Security scope: none — no auth, data, network, file, dependency, or secret surface changed.`
+- HALT when data sensitivity, ownership, auth context, or external exposure
+  would change the secure design.
+
+Security issues outside the current task are noted and deferred unless the user
+explicitly scopes a security fix.
+
+## 3. TDD (bifurcated)
 
 **Logic TDD** — utils, stores, API, pure functions: unit test → RED → minimal code → GREEN.
 
@@ -77,7 +97,7 @@ they do not replace running verifiers.
 On failure: one-sentence hypothesis → minimal instrumentation → fix → full suite.
 After 3 failed hypotheses on the same failure: HALT, report to human.
 
-## 3. Scaffold hygiene (before first feature file)
+## 4. Scaffold hygiene (before first feature file)
 
 1. Read generated `src/**/*.{tsx,jsx,css}`, `index.html`
 2. Remove: `color-scheme`, global `text-align: center` on root, demo classes
@@ -86,7 +106,7 @@ After 3 failed hypotheses on the same failure: HALT, report to human.
    **never assume 5173**
 4. `curl`/HTTP check → 200, then browser evidence of blank slate
 
-## 4. Qualitative UX gate (mandatory for UI; SKIPPED ≠ PASSED)
+## 5. Qualitative UX gate (mandatory for UI; SKIPPED ≠ PASSED)
 
 **Primary:** `cursor-ide-browser` MCP — `browser_navigate`, `browser_snapshot`,
 `browser_take_screenshot`, `browser_resize`, `browser_cdp` (console).
@@ -117,20 +137,21 @@ After 3 failed hypotheses on the same failure: HALT, report to human.
 
 If no browser tool works: `ux_gate: "SKIPPED"` in state — **do not** mark task done.
 
-## 5. Surgical changes (always on)
+## 6. Surgical changes (always on)
 
 Edit only files required by the current task. No drive-by format, rename, or speculative abstractions.
 Security issues spotted outside task scope → note them, do not apply. Security fixes = separate, explicitly scoped task.
 
-## 6. Pre-merge (`standard` + `full`)
+## 7. Pre-merge (`standard` + `full`)
 
-CI green, UX gate passed (not SKIPPED), read-only security review, no TODOs in diff.
+CI green, security spec current or scope marked none, UX gate passed (not SKIPPED),
+read-only security review, no TODOs in diff.
 
-## 7. Memory (`full` only)
+## 8. Memory (`full` only)
 
 claude-mem MCP: `search` → `timeline` → `get_observations`. graphify (>500 files): subgraph only.
 
-## 8. Claude Code → Cursor mapping
+## 9. Claude Code → Cursor mapping
 
 | Machina (Claude Code) | Cursor equivalent |
 |-----------------------|-------------------|
@@ -139,6 +160,7 @@ claude-mem MCP: `search` → `timeline` → `get_observations`. graphify (>500 f
 | `done-signal-guard.js` PostToolUse | `.cursor/hooks/machina-done-signal.js` |
 | `agent-browser snapshot` | `browser_snapshot` MCP (preferred) |
 | `/speckit.tasks` | `specs/**/tasks.md` checkboxes |
+| `/security-spec` | Write `specs/<feature>/security.md` or `SECURITY_SPEC.md` |
 | `/machina-reset` | `node .cursor/hooks/machina-reset.js` |
 | `/project`, `/casual` | User says "project mode" / "casual mode" explicitly |
 | `orchestrator_config.yaml` model routing | **Inert** in single-agent Cursor — ignore |

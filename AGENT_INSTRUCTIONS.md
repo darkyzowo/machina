@@ -1,121 +1,71 @@
-# AGENT_INSTRUCTIONS
+# AGENT_INSTRUCTIONS.md
 
-You control only what is in your active context window.
-You do not install packages, route models, manage databases, or schedule
-background processes — the orchestrator owns those. These are the rules
-an LLM can actually enforce.
+Project-specific overrides for Machina v3. The harness runtime is mechanical —
+see `.machina/state.json` and hooks in `~/.claude/hooks/`.
 
----
-
-## 0. Hard limits (non-negotiable at all profiles)
-
-- **Done = verifiable.** A passing compiler, linter, or test — not your
-  own judgement. Never self-grade output quality.
-- **5-pass ceiling.** Stop after 5 recursive passes and hand off to human
-  review. Do not extend your own autonomy or modify your own permissions.
-- **No config mutation.** Never edit, delete, or rewrite `~/.claude`,
-  `~/.codex`, `~/.cursor`, or any other user tool config. Audits are
-  read-only and produce a report.
+Canonical spec: `harness.md` (global: `~/.claude/machina/harness.md`).
 
 ---
 
-## 1. Before coding — Karpathy guidelines
+## Hard limits (Tier A — hooks enforce these)
 
-**Think first.** State assumptions explicitly before writing a line.
-On any ambiguity: HALT and ask. Do not guess at intent.
-Halt only when output type is unclear, target location unspecified, or spec has incompatible interpretations. Clear deliverables with sensible defaults → state assumptions and proceed.
-
-**Simplicity first.** Minimum line-count that satisfies the test.
-No future-proofing. No single-use abstractions. No speculative generality.
-
-**Surgical changes.** Edit only the targeted logic. Do not reformat
-adjacent code, rename variables, or "clean up" anything you were not
-explicitly asked to touch.
-Security issues spotted while on a surgical task → note them, do not apply. Security fixes belong in a separate, explicitly scoped task.
-
-**Goal-driven.** Convert imperatives to verifiable constraints.
-"Add validation" → "write tests for invalid inputs, then make them pass."
+- **Done = verifiable** — external tool output only.
+- **5-pass ceiling** — `/machina reset` after human review.
+- **No config mutation** — never edit `~/.claude`, `~/.cursor`, etc.
+- **Secret guard always on** — even in ship mode.
 
 ---
 
-## 2. TDD — Red → Green → Refactor (mandatory)
+## Rigor dial (user-facing)
 
-1. **Red** — write a failing test first. Stop there.
-2. Wait for the test runner to log the failure. You are **forbidden** from
-   writing implementation logic before a real red signal exists.
-3. **Green** — write the minimum code to pass. Nothing more.
-4. **Refactor** — only once the bar is green.
+| Mode | Command |
+|------|---------|
+| ship (default) | `/machina ship` |
+| rigor (full loop) | `/machina rigor` |
 
-Decompose work into ≈2–5 minute verifiable chunks.
-
----
-
-## 3. On failure — systematic root-cause, not guessing
-
-Form a hypothesis. Isolate the variable. Prove the hypothesis with a
-targeted test. Fix. Re-run to confirm resolution. Only then advance.
+`.agent-profile` (lean/standard/full) controls optional tool install only — `make profile-setup`.
 
 ---
 
-## 4. Pre-merge checklist
+## Before coding
 
-Before merging any branch:
-- Code review against the original spec (`/requesting-code-review`)
-- All CI checks green: lint, typecheck, test, build
-- Dependency audit clean: `npm audit` / `pip-audit`
-- Secret scan clean: gitleaks
-- Security review run (`/security-review` — read-only, no write tools)
+State assumptions. HALT only when deliverable format, target location, or spec
+interpretation is genuinely incompatible.
 
----
+**Security spec (rigor mode):** `phase-gate.js` blocks impl until
+`specs/<feature>/security.md` includes `## Abuse cases`. Use `/security-spec`.
 
-## 5. Memory retrieval — query, do not administer (full profile only)
-
-You query memory via MCP tools. You do not manage the stores.
-Use the 3-layer progressive-disclosure pattern:
-
-1. `search` → compact IDs only
-2. `timeline` → chronological adjacency for those IDs
-3. `get_observations` → full context for exactly the IDs you need
-
-For repos > 500 files: query the code graph (`query_graph`, `get_node`,
-`shortest_path`) instead of reading or grepping files. Load only the
-subgraph the current task requires.
+**Surgical changes (always):** edit only task scope. Security fixes outside scope → note, defer.
 
 ---
 
-## 6. Output compression — Caveman, scoped not blanket
+## TDD (rigor mode — Tier A via phase-gate)
 
-Compress conversational prose: drop filler, hedging, pleasantries,
-tool announcements.
-
-**Never compress:**
-- Security warnings or irreversible-action confirmations
-- Ordered multi-step sequences (fragment ambiguity causes misreads)
-- All code, commit messages, and PR descriptions (byte-exact always)
-- Active reasoning during a TDD cycle (degrades chain-of-thought quality)
-
-Compression of stored memory files (`CLAUDE.md`, notes) is a separate
-offline step run by the orchestrator via `caveman-compress`, which keeps
-a `.original.md` backup.
+1. `/machina rigor` → phase `red` — test files only
+2. Run tests → verifier captures `red.txt` with exit ≠ 0
+3. Phase `green` — impl allowed after RED artifact
+4. `/machina next` to advance when gates satisfied
 
 ---
 
-## 7. Profile — read .agent-profile to know your tools
+## Pre-merge (rigor)
 
-Read `.agent-profile` in the project root. If absent, assume `lean`.
+- CI green (Tier A only with branch protection)
+- Security spec or explicit none
+- UX gate passed (not SKIPPED)
+- `/security-review` read-only
+- gitleaks + dep audit clean
 
-| Profile    | What is installed and available                          |
-|------------|----------------------------------------------------------|
-| `lean`     | CI gates + superpowers (TDD, brainstorm, code review)    |
-| `standard` | + spec-kit (`/speckit.*`) + caveman                      |
-| `full`     | + claude-mem (memory MCP) + graphify (code graph MCP)    |
+---
 
-Do not call tools outside your active profile — they are not installed.
+## Profile tools
 
-**spec-kit loop (standard+):**
-`/speckit.constitution` → `/speckit.specify` → `/speckit.plan` →
-`/brainstorm` (human gate) → `/speckit.tasks` → dispatch to worktrees
+Read `.agent-profile`. Do not call tools outside your tier:
 
-**Model routing (handled by orchestrator, not you):**
-- Strategic / architecture / deep debug → Claude Opus 4.8
-- Boilerplate / unit tests / localized logic → Claude Sonnet or Haiku
+| Profile | Tools |
+|---------|-------|
+| lean | CI + superpowers |
+| standard | + spec-kit |
+| full | + claude-mem + graphify (opt-in install) |
+
+**spec-kit (standard+):** `/speckit.constitution` → `/speckit.specify` → `/security-spec` → `/speckit.plan` → `/speckit.tasks`

@@ -69,45 +69,34 @@ else
   warn "pre-commit not installed — CI secret-scan still gates merges, but local hook missing."
 fi
 
-# ── 5. Profile detection ──────────────────────────────────────────────────────
-log "detecting project profile"
+# ── 5. Harness scaffold + profile detection ───────────────────────────────────
+log "scaffolding project harness (.machina/)"
+bash "$ROOT/scripts/harness-init-project.sh" "$ROOT"
+
+log "detecting project profile (internal tool install tier)"
 bash "$ROOT/scripts/detect-profile.sh"
 PROFILE="lean"
 [ -f "$ROOT/.agent-profile" ] && PROFILE="$(cat "$ROOT/.agent-profile")"
-log "active profile: $PROFILE"
+log "active profile: $PROFILE (tool install — user rigor dial: /machina ship | rigor)"
 
-# ── 6. Agent tooling instructions ─────────────────────────────────────────────
+# ── 6. Next steps ─────────────────────────────────────────────────────────────
 echo
-echo "  ┌─ install these INSIDE your coding agent ─────────────────────────"
+echo "  ┌─ Machina v3 next steps ───────────────────────────────────────────"
 echo "  │"
-echo "  │  ALL PROFILES:"
+echo "  │  make profile-setup          # install tools for profile: $PROFILE"
+echo "  │  make global-setup           # once per machine (if not done)"
+echo "  │"
+echo "  │  Inside Claude Code:"
+echo "  │    /machina rigor            # full harness loop"
+echo "  │    /machina ship             # fast path (default)"
+echo "  │    /machina status"
+echo "  │"
+echo "  │  Optional plugins:"
 echo "  │    /plugin marketplace add obra/superpowers-marketplace"
 echo "  │    /plugin install superpowers@superpowers-marketplace"
-echo "  │    /plugin marketplace add jarrodwatts/claude-hud"
-echo "  │    /plugin install claude-hud"
-echo "  │    /claude-hud:setup"
 if [[ "$PROFILE" == "standard" || "$PROFILE" == "full" ]]; then
-echo "  │"
-echo "  │  STANDARD / FULL:"
-echo "  │    uv tool install specify-cli --from 'git+https://github.com/github/spec-kit.git@v0.10.2'"
-echo "  │    specify init . --integration claude"
+echo "  │    specify init . --integration claude   # after profile-setup"
 fi
-if [[ "$PROFILE" == "full" ]]; then
-echo "  │"
-echo "  │  FULL ONLY:"
-echo "  │    npm install -g claude-mem@${CLAUDE_MEM_VERSION} && claude-mem install"
-echo "  │    claude-mem start"
-echo "  │    uv tool install 'git+https://github.com/safishamsi/graphify.git@v3'"
-fi
-echo "  │"
-echo "  │  After any uv tool install:"
-echo "  │    uv tool update-shell   # fixes PATH"
-echo "  │    source ~/.zshrc        # or ~/.bashrc / ~/.config/fish/config.fish"
-echo "  │"
-echo "  │  CURSOR (project-level — never touches ~/.cursor):"
-echo "  │    cd your-app && bash $ROOT/scripts/detect-profile.sh ."
-echo "  │    bash $ROOT/scripts/install-cursor.sh ."
-echo "  │    specify init . --integration cursor   # standard/full only"
 echo "  └──────────────────────────────────────────────────────────────────"
 echo
 
@@ -124,4 +113,4 @@ warn "Bootstrap complete. Review reports/config-audit.md before proceeding."
 warn "The autonomous loop is NEVER auto-started by this script."
 read -r -p '  Type "go" to acknowledge and continue: ' ACK
 [ "$ACK" = "go" ] || die "Not acknowledged. (This gate is intentional.)"
-log "Acknowledged. Follow README.md §5 to drive the spec-kit workflow."
+log "Acknowledged. Use /machina rigor to start the full harness loop."
