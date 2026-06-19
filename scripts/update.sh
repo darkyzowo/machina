@@ -49,7 +49,7 @@ echo "════════════════════════�
 diff_and_stage "harness.md"           "$REPO_ROOT/harness.md"                          "$MACHINA_DIR/harness.md"
 diff_and_stage "rules.md (alias)"     "$REPO_ROOT/harness.md"                          "$MACHINA_DIR/rules.md"
 
-for hook in harness-lib.js harness-init.js phase-gate.js pass-ceiling.js secret-guard.js verifier-capture.js; do
+for hook in harness-lib.js harness-hook-utils.js harness-init.js phase-gate.js pass-ceiling.js secret-guard.js verifier-capture.js; do
   diff_and_stage "$hook" "$REPO_ROOT/.claude/hooks/$hook" "$HOOKS_DIR/$hook"
 done
 
@@ -59,6 +59,7 @@ for cmd in machina-status.md machina-rigor.md machina-ship.md machina-next.md ma
 done
 
 diff_and_stage "statusline.sh" "$REPO_ROOT/.claude/statusline.sh" "$HOME/.claude/statusline.sh"
+diff_and_stage "statusline.js" "$REPO_ROOT/.claude/statusline.js" "$HOME/.claude/statusline.js"
 
 if [ "$CHANGED" -eq 0 ]; then
   echo

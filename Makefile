@@ -1,4 +1,4 @@
-.PHONY: help global-setup profile-setup update bootstrap profile verify audit hooks ci-local cursor-install check-pins harness-test report
+.PHONY: help global-setup profile-setup migrate update bootstrap profile verify audit hooks ci-local cursor-install check-pins harness-test report
 .DEFAULT_GOAL := help
 
 TARGET ?= .
@@ -15,6 +15,9 @@ help:           ## Show available commands
 
 global-setup:   ## One-time: harness hooks + commands to ~/.claude/
 	@bash scripts/global-setup.sh
+
+migrate:        ## Disconnect v2.5 + wire v3.1 globally (run once when upgrading)
+	@bash scripts/migrate-v3.sh
 
 profile-setup:  ## Install tools for .agent-profile (PROFILE=lean|standard|full)
 	@bash scripts/profile-setup.sh $(TARGET)

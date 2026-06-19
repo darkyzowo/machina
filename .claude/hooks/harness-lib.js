@@ -207,10 +207,22 @@ function hasTasksMd(projectRoot) {
   return false;
 }
 
+function projectUsesSpecKit(projectRoot) {
+  return hasSpecMd(projectRoot) || fs.existsSync(path.join(projectRoot, 'specs'));
+}
+
 function allowedWrite(phase, rigor, fileClass, projectRoot, state) {
   if (rigor === 'ship') {
     if (fileClass === 'security' || fileClass === 'spec') return { ok: true };
-    if (fileClass === 'impl' || fileClass === 'test' || fileClass === 'other') return { ok: true };
+    if ((fileClass === 'impl' || fileClass === 'test') && projectUsesSpecKit(projectRoot)) {
+      if (!hasSecuritySpec(projectRoot)) {
+        return {
+          ok: false,
+          reason:
+            'Ship security floor: specs/ project requires security.md with ## Abuse cases before code changes.',
+        };
+      }
+    }
     return { ok: true };
   }
 
@@ -243,20 +255,36 @@ function allowedWrite(phase, rigor, fileClass, projectRoot, state) {
               'Phase security_spec: create specs/<feature>/security.md with ## Abuse cases before implementation.',
           };
         }
+        return {
+          ok: false,
+          reason: 'Phase security_spec: run /machina next to advance to speckit_plan before code.',
+        };
       }
       return { ok: true };
 
     case 'speckit_plan':
       if (fileClass === 'spec') return { ok: true };
       if (fileClass === 'impl' || fileClass === 'test') {
-        return { ok: false, reason: 'Phase speckit_plan: write plan.md before code.' };
+        if (!hasPlanMd(projectRoot)) {
+          return { ok: false, reason: 'Phase speckit_plan: write plan.md before code.' };
+        }
+        return {
+          ok: false,
+          reason: 'Phase speckit_plan: run /machina next to speckit_tasks before code.',
+        };
       }
       return { ok: true };
 
     case 'speckit_tasks':
       if (fileClass === 'spec') return { ok: true };
       if (fileClass === 'impl' || fileClass === 'test') {
-        return { ok: false, reason: 'Phase speckit_tasks: write tasks.md before code.' };
+        if (!hasTasksMd(projectRoot)) {
+          return { ok: false, reason: 'Phase speckit_tasks: write tasks.md before code.' };
+        }
+        return {
+          ok: false,
+          reason: 'Phase speckit_tasks: run /machina next to red phase before code.',
+        };
       }
       return { ok: true };
 
@@ -322,7 +350,7 @@ function sessionId() {
 function harnessContext(projectRoot) {
   const state = readState(projectRoot);
   const lines = [
-    `MACHINA v3 | rigor=${state.rigor} | phase=${state.phase} | task=${state.current_task || 'none'} | pass=${state.pass_count}/5`,
+    `MACHINA v3.1 | rigor=${state.rigor} | phase=${state.phase} | task=${state.current_task || 'none'} | pass=${state.pass_count}/5`,
     state.rigor === 'rigor'
       ? 'Rigor: full loop (spec → RED → GREEN → CI → UX). Impl blocked in red phase.'
       : 'Ship: surgical edits + security floors only. Use /machina rigor for full loop.',

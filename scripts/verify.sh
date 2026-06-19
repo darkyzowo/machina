@@ -19,34 +19,47 @@ for f in \
   harness.md orchestrator_config.yaml AGENT_INSTRUCTIONS.md CLAUDE.md AGENTS.md \
   scripts/global-setup.sh scripts/profile-setup.sh scripts/harness-init-project.sh \
   scripts/machina-report.sh scripts/check-spec-security.sh \
-  .claude/hooks/harness-lib.js .claude/hooks/harness-init.js \
+  .claude/hooks/harness-lib.js .claude/hooks/harness-hook-utils.js .claude/hooks/harness-init.js \
   .claude/hooks/phase-gate.js .claude/hooks/pass-ceiling.js \
   .claude/hooks/secret-guard.js .claude/hooks/verifier-capture.js \
   .claude/commands/machina-status.md .claude/commands/machina-rigor.md \
   .claude/commands/machina-ship.md .claude/settings.example.json \
+  .claude/statusline.sh .claude/statusline.js \
   templates/machina/state.json benchmarks/README.md Makefile; do
   [ -f "$ROOT/$f" ] && ok "$f" || fail "$f MISSING"
 done
 
 echo
 echo "── Global harness install (~/.claude) ────────────────────────────────"
-for hook in harness-lib.js harness-init.js phase-gate.js pass-ceiling.js secret-guard.js verifier-capture.js; do
+for hook in harness-lib.js harness-hook-utils.js harness-init.js phase-gate.js pass-ceiling.js secret-guard.js verifier-capture.js; do
   [ -f "$HOME_CLAUDE/hooks/$hook" ] && ok "~/.claude/hooks/$hook" || warn "~/.claude/hooks/$hook absent — run: make global-setup"
 done
 
 [ -f "$HOME_CLAUDE/machina/harness.md" ] && ok "~/.claude/machina/harness.md" || warn "harness.md not installed globally"
+[ -f "$HOME_CLAUDE/statusline.sh" ] && ok "~/.claude/statusline.sh" || warn "statusline.sh absent — run: make global-setup"
+[ -f "$HOME_CLAUDE/statusline.js" ] && ok "~/.claude/statusline.js" || warn "statusline.js absent — run: make global-setup"
 
 if [ -f "$HOME_CLAUDE/settings.json" ]; then
   if grep -q 'harness-init' "$HOME_CLAUDE/settings.json" 2>/dev/null; then
     ok "settings.json wires harness-init"
   else
-    warn "settings.json missing harness-init — re-run global-setup or copy settings.example.json"
+    fail "settings.json missing harness-init — run: make migrate"
   fi
+  for wh in secret-guard phase-gate pass-ceiling verifier-capture PostToolUseFailure; do
+    if grep -q "$wh" "$HOME_CLAUDE/settings.json" 2>/dev/null; then
+      ok "settings.json references $wh"
+    else
+      fail "settings.json missing $wh — run: make migrate"
+    fi
+  done
   if grep -q 'done-signal-guard' "$HOME_CLAUDE/settings.json" 2>/dev/null; then
-    warn "settings.json still has done-signal-guard on hot path — remove for v3"
+    fail "settings.json still has v2.5 done-signal-guard — run: make migrate"
+  fi
+  if grep -q 'mode-init' "$HOME_CLAUDE/settings.json" 2>/dev/null; then
+    fail "settings.json still has v2.5 mode-init — run: make migrate"
   fi
 else
-  warn "settings.json absent — launch Claude Code once, then make global-setup"
+  fail "settings.json absent — launch Claude Code, then: make migrate"
 fi
 
 echo

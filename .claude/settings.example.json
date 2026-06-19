@@ -1,9 +1,8 @@
 {
   "_readme": [
-    "Machina v3 settings template — copy blocks into ~/.claude/settings.json.",
-    "Windows (Git Bash): replace $HOME with C:/Users/YOUR_USERNAME",
-    "Caveman / claude-hud / claude-mem are optional add-ons — not Machina defaults.",
-    "Profile tools: bash scripts/profile-setup.sh (after make profile)"
+    "Machina v3.1 settings template — merged into ~/.claude/settings.json by migrate-v3.sh",
+    "Windows: paths use forward slashes in hook commands",
+    "Set MACHINA_KEEP_STATUSLINE=1 to preserve claude-hud during migration"
   ],
 
   "hooks": {
@@ -47,7 +46,19 @@
           {
             "type": "command",
             "command": "node \"$HOME/.claude/hooks/verifier-capture.js\"",
-            "timeout": 10
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/hooks/verifier-capture.js\"",
+            "timeout": 15
           }
         ]
       }
@@ -57,18 +68,5 @@
   "statusLine": {
     "type": "command",
     "command": "bash \"$HOME/.claude/statusline.sh\""
-  },
-
-  "enabledPlugins": {
-    "superpowers@superpowers-marketplace": true
-  },
-
-  "extraKnownMarketplaces": {
-    "superpowers-marketplace": {
-      "source": {
-        "source": "github",
-        "repo": "obra/superpowers-marketplace"
-      }
-    }
   }
 }

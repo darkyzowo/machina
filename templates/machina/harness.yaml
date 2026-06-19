@@ -1,7 +1,7 @@
 # rigor: rigor | ship
 # Persist harness intensity. Overridden by /machina rigor | /machina ship.
 
-rigor: rigor
+rigor: ship
 
 test_patterns:
   - "\\.test\\.[cm]?[jt]sx?$"

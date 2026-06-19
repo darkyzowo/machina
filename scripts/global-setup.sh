@@ -74,7 +74,7 @@ echo ""
 echo "→ Installing harness hooks..."
 
 mkdir -p "$HOOKS_DIR"
-for hook in harness-lib.js harness-init.js phase-gate.js pass-ceiling.js secret-guard.js verifier-capture.js; do
+for hook in harness-lib.js harness-hook-utils.js harness-init.js phase-gate.js pass-ceiling.js secret-guard.js verifier-capture.js; do
   cp "$REPO_ROOT/.claude/hooks/$hook" "$HOOKS_DIR/$hook"
   echo "  ✓ $hook"
 done
@@ -97,7 +97,8 @@ for cmd in machina-status.md machina-rigor.md machina-ship.md machina-next.md ma
 done
 
 cp "$REPO_ROOT/.claude/statusline.sh" "$HOME/.claude/statusline.sh"
-echo "  ✓ statusline.sh"
+cp "$REPO_ROOT/.claude/statusline.js" "$HOME/.claude/statusline.js"
+echo "  ✓ statusline.sh + statusline.js"
 
 # ── CLAUDE.md marker ──────────────────────────────────────────────
 mkdir -p "$(dirname "$CLAUDE_MD")"
@@ -106,60 +107,17 @@ grep -q "Machina v3" "$CLAUDE_MD" 2>/dev/null \
   || echo -e "\n# Machina v3 — https://github.com/darkyzowo/machina\n# Harness injected by harness-init.js | /machina rigor | /machina ship" >> "$CLAUDE_MD"
 echo "  ✓ CLAUDE.md updated (idempotent)"
 
-# ── Wire hooks into settings.json (quiet — no statusMessage on hot path) ─
+# ── Wire hooks (prefer migrate-v3.sh for upgrades) ─────────────────
 SETTINGS="$HOME/.claude/settings.json"
 if [ -f "$SETTINGS" ]; then
-  node -e "
-const fs = require('fs');
-const home = process.env.HOME || process.env.USERPROFILE;
-const p = home + '/.claude/settings.json';
-const s = JSON.parse(fs.readFileSync(p, 'utf8'));
-if (!s.hooks) s.hooks = {};
-
-function wire(hookList, event, matcher, hookFile) {
-  if (!hookList) hookList = [];
-  const needle = hookFile;
-  const exists = hookList.some(g =>
-    (g.hooks || []).some(h => h.command && h.command.includes(needle))
-  );
-  if (!exists) {
-    const entry = { hooks: [{ type: 'command', command: 'node \"' + home + '/.claude/hooks/' + hookFile + '\"', timeout: 5 }] };
-    if (matcher) entry.matcher = matcher;
-    hookList.push(entry);
-    console.log('  ✓ wired ' + hookFile + ' → ' + event);
-  } else {
-    console.log('  ✓ ' + hookFile + ' already wired');
-  }
-  return hookList;
-}
-
-// Remove done-signal-guard and mode-init from defaults if patching fresh
-s.hooks.SessionStart = (s.hooks.SessionStart || []).filter(g =>
-  !(g.hooks || []).some(h => h.command && (h.command.includes('mode-init') || h.command.includes('done-signal')))
-);
-s.hooks.PostToolUse = (s.hooks.PostToolUse || []).filter(g =>
-  !(g.hooks || []).some(h => h.command && h.command.includes('done-signal-guard'))
-);
-
-s.hooks.SessionStart = wire(s.hooks.SessionStart, 'SessionStart', null, 'harness-init.js');
-
-s.hooks.PreToolUse = s.hooks.PreToolUse || [];
-s.hooks.PreToolUse = wire(s.hooks.PreToolUse, 'PreToolUse', 'Edit|Write', 'secret-guard.js');
-s.hooks.PreToolUse = wire(s.hooks.PreToolUse, 'PreToolUse', 'Edit|Write', 'phase-gate.js');
-s.hooks.PreToolUse = wire(s.hooks.PreToolUse, 'PreToolUse', 'Edit|Write', 'pass-ceiling.js');
-
-s.hooks.PostToolUse = s.hooks.PostToolUse || [];
-s.hooks.PostToolUse = wire(s.hooks.PostToolUse, 'PostToolUse', 'Bash', 'verifier-capture.js');
-
-fs.writeFileSync(p, JSON.stringify(s, null, 2));
-" || echo "  ⚠  Could not patch settings.json — see settings.example.json"
+  node "$SCRIPT_DIR/wire-settings.js" || echo "  ⚠  wire-settings.js failed — run: bash scripts/migrate-v3.sh"
 else
-  echo "  ℹ  settings.json not found — copy from settings.example.json after first Claude Code launch"
+  echo "  ℹ  settings.json not found — launch Claude Code once, then: bash scripts/migrate-v3.sh"
 fi
 
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
-echo "  ✓ Machina v3.0 global setup complete"
+echo "  ✓ Machina v3.1 global setup complete"
 echo ""
 echo "  Next steps:"
 echo "    cd your-project"

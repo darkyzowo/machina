@@ -3,6 +3,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { readHookInput, block, warn, hookCwd } = require('./harness-hook-utils');
 const {
   findProjectRoot,
   readState,
@@ -11,17 +12,10 @@ const {
   appendTelemetry,
 } = require('./harness-lib');
 
-let input = {};
-if (!process.stdin.isTTY) {
-  try {
-    const raw = fs.readFileSync(0, 'utf8').trim();
-    if (raw) input = JSON.parse(raw);
-  } catch (_) {}
-}
-
+const input = readHookInput();
 const toolInput = input.tool_input || {};
 const filePath = toolInput.file_path || toolInput.path || '';
-const projectRoot = findProjectRoot(filePath ? path.dirname(filePath) : process.cwd());
+const projectRoot = findProjectRoot(hookCwd(input, filePath));
 
 const sid = sessionId();
 const countsDir = path.join(projectRoot, '.machina', 'pass-counts');
@@ -58,16 +52,15 @@ writeState(projectRoot, state);
 
 if (counter.count >= 5) {
   appendTelemetry(projectRoot, { event: 'halt', reason: 'pass_ceiling', pass: counter.count });
-  process.stdout.write(
+  block(
     `MACHINA PASS CEILING (${counter.count}/5) — HALT.\n` +
       `Do not make further edits. Report current state to human for review.\n` +
       `Run /machina reset after human review clears the loop.`
   );
-  process.exit(1);
 }
 
 if (counter.count === 4) {
-  process.stdout.write('MACHINA PASS 4/5 — next edit triggers halt. Run external verifiers now.');
+  warn('MACHINA PASS 4/5 — next edit triggers halt. Run external verifiers now.');
 }
 
 process.exit(0);

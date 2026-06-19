@@ -43,7 +43,7 @@ let s = spawnSync('node', [sg], {
   input: JSON.stringify({ tool_input: { content: 'const key = \"AKIAIOSFODNN7EXAMPLE\";' } }),
   encoding: 'utf8',
 });
-assert(s.status !== 0, 'secret-guard blocks AWS key');
+assert(s.status === 2, 'secret-guard blocks AWS key with exit 2');
 
 s = spawnSync('node', [sg], {
   input: JSON.stringify({ tool_input: { content: 'const x = 1;' } }),
