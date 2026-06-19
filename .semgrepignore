@@ -1,0 +1,4 @@
+# Harness hooks — local agent sandbox scripts, not deployed services.
+# Semgrep path-traversal rules false-positive on path.join(cwd, fixed segments).
+.claude/hooks/
+templates/cursor/.cursor/hooks/

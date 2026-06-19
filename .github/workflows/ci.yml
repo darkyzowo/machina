@@ -110,7 +110,10 @@ jobs:
         if: ${{ hashFiles('**/*.js', '**/*.ts', '**/*.py', '**/*.go') != '' }}
         run: |
           pip install semgrep --quiet
-          semgrep --config auto --error --quiet . || semgrep --config auto --error .
+          semgrep --config auto --error --quiet \
+            --exclude '.claude/hooks' \
+            --exclude 'templates/cursor/.cursor/hooks' \
+            .
 
       - name: Dependency audit (npm)
         if: ${{ hashFiles('package-lock.json') != '' }}
