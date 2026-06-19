@@ -51,7 +51,7 @@ Before security-relevant implementation in **rigor** mode:
 1. Write `specs/<feature>/security.md` with `## Abuse cases` (or root `SECURITY_SPEC.md`)
 2. `phase-gate.js` blocks impl until artifact exists
 
-**Ship mode:** abbreviated — network/auth surface still needs abuse cases in SECURITY_SPEC.md.
+**Ship mode:** abbreviated — network/auth/API surface still needs abuse cases (`/security-spec`). Sensitive paths (`api/`, `auth/`, `middleware`, `routes/`, `server/`) are blocked until a security spec exists, even without `specs/`.
 
 Security fixes outside task scope → note and defer (§4). Never inline-patch.
 
@@ -67,9 +67,20 @@ Security fixes outside task scope → note and defer (§4). Never inline-patch.
 
 ## §5 — Qualitative UX gate (rigor + UI only — Tier B)
 
-After CI passes for UI work: `agent-browser` or browser MCP evidence in `.machina/verifiers/<task>/ux.txt`.
+After CI passes for UI work: `agent-browser` or Playwright evidence in `.machina/verifiers/<task>/ux.txt`.
 
-`SKIPPED` must be logged in state with reason — SKIPPED ≠ PASSED.
+**UI detection:** editing UI paths (`.tsx`, `components/`, pages) sets `ui_touched` in state automatically.
+
+**Skill map** (use `/machina ux`):
+
+| Step | Skill | When |
+|------|-------|------|
+| Design exploration | `brainstorming` (superpowers) | New screens, flows, IA |
+| Visual polish | `ui-ux-pro-max` | Typography, spacing, a11y, design system |
+| E2E | `playwright` | Regression on critical UI paths |
+| Evidence | `agent-browser` | Capture ux.txt verifier artifact |
+
+`SKIPPED` must be logged via `/machina next --skip-ux "reason"` — SKIPPED ≠ PASSED.
 
 ---
 

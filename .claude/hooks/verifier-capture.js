@@ -43,15 +43,40 @@ function writeArtifact(name) {
 }
 
 function isTestCmd(cmd) {
-  return /\b(npm test|npm run test|vitest|pytest)\b/.test(cmd);
+  return /\b(npm test|npm run test|pnpm test|pnpm run test|yarn test|vitest|jest|pytest|go test|cargo test|dotnet test|phpunit)\b/.test(
+    cmd
+  );
 }
 
 function isCiCmd(cmd) {
-  return /\bnpm run (lint|typecheck|build)\b/.test(cmd);
+  return /\b(npm run (lint|typecheck|build|check)|pnpm (lint|run lint|run typecheck|run build)|yarn (lint|build|typecheck)|ruff check|eslint|tsc\b|cargo (clippy|build)|go vet|make (verify|ci-local|harness-test))\b/.test(
+    cmd
+  );
 }
 
 function isUxCmd(cmd) {
-  return /\b(agent-browser|curl)\b/.test(cmd);
+  return /\b(agent-browser|playwright|npx playwright)\b/.test(cmd) || /\bcurl\b/.test(cmd);
+}
+
+function afterCiPass() {
+  if (exitCode !== 0 || state.phase !== 'ci_gates') return;
+  if (state.ui_touched) {
+    state.phase = 'ux_gate';
+    appendTelemetry(projectRoot, { event: 'phase_enter', phase: 'ux_gate' });
+  } else {
+    state.phase = 'task_complete';
+    state.ux_gate = 'skipped';
+    state.ux_skip_reason = 'no_ui_surface';
+    appendTelemetry(projectRoot, { event: 'phase_enter', phase: 'task_complete' });
+  }
+  writeState(projectRoot, state);
+}
+
+function afterUxRun() {
+  if (state.ui_touched) {
+    state.ux_gate = exitCode === 0 ? 'passed' : 'failed';
+    writeState(projectRoot, state);
+  }
 }
 
 let matched = false;
@@ -76,6 +101,10 @@ if (isTestCmd(command)) {
       appendTelemetry(projectRoot, { event: 'phase_exit', phase: 'green', outcome: 'pass' });
       appendTelemetry(projectRoot, { event: 'phase_enter', phase: 'refactor' });
     }
+  } else if (state.phase === 'ci_gates' && exitCode === 0) {
+    writeArtifact('ci.txt');
+    appendTelemetry(projectRoot, { event: 'verifier', gate: 'ci', exit: exitCode, command: command.slice(0, 120) });
+    afterCiPass();
   } else {
     writeArtifact(exitCode === 0 ? 'green.txt' : 'red.txt');
     appendTelemetry(projectRoot, { event: 'verifier', gate: exitCode === 0 ? 'green' : 'red', exit: exitCode });
@@ -88,14 +117,20 @@ if (isTestCmd(command)) {
     state.phase = 'ci_gates';
     writeState(projectRoot, state);
     appendTelemetry(projectRoot, { event: 'phase_enter', phase: 'ci_gates' });
+    afterCiPass();
+  } else if (exitCode === 0 && state.phase === 'ci_gates') {
+    afterCiPass();
   }
 } else if (isUxCmd(command)) {
   matched = true;
   writeArtifact('ux.txt');
   appendTelemetry(projectRoot, { event: 'verifier', gate: 'ux', exit: exitCode });
-  if (state.ui_touched) {
-    state.ux_gate = exitCode === 0 ? 'passed' : 'failed';
+  afterUxRun();
+  if (exitCode === 0 && state.phase === 'ux_gate') {
+    state.phase = 'task_complete';
+    state.ux_gate = 'passed';
     writeState(projectRoot, state);
+    appendTelemetry(projectRoot, { event: 'phase_enter', phase: 'task_complete' });
   }
 }
 

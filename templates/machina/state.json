@@ -4,6 +4,7 @@
   "current_task": null,
   "pass_count": 0,
   "ux_gate": "pending",
+  "ux_skip_reason": null,
   "security_spec": "pending",
   "profile": "lean",
   "ui_touched": false

@@ -44,9 +44,17 @@ interpretation is genuinely incompatible.
 1. `/machina rigor` → phase `red` — test files only
 2. Run tests → verifier captures `red.txt` with exit ≠ 0
 3. Phase `green` — impl allowed after RED artifact
-4. `/machina next` to advance when gates satisfied
+4. `/machina next` — run `node ~/.claude/hooks/machina-advance.js` (mechanical; do not guess gates)
 
 ---
+
+## UX / frontend (rigor + UI)
+
+When `ui_touched` is set, use `/machina ux` for the skill map:
+
+brainstorming → ui-ux-pro-max → implement → playwright (if present) → agent-browser evidence → `/machina next`
+
+SKIPPED UX requires `--skip-ux "reason"` on advance script.
 
 ## Pre-merge (rigor)
 

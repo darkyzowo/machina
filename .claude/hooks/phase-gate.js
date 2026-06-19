@@ -9,6 +9,8 @@ const {
   classifyWrite,
   allowedWrite,
   appendTelemetry,
+  isUiFile,
+  markUiTouched,
 } = require('./harness-lib');
 
 const input = readHookInput();
@@ -17,9 +19,14 @@ const filePath = toolInput.file_path || toolInput.path || '';
 if (!filePath) process.exit(0);
 
 const projectRoot = findProjectRoot(hookCwd(input, filePath));
-const state = readState(projectRoot);
+let state = readState(projectRoot);
 const fileClass = classifyWrite(filePath);
-const { ok, reason } = allowedWrite(state.phase, state.rigor, fileClass, projectRoot, state);
+
+if (state.rigor === 'rigor' && (fileClass === 'impl' || fileClass === 'test') && isUiFile(filePath)) {
+  state = markUiTouched(projectRoot, state);
+}
+
+const { ok, reason } = allowedWrite(state.phase, state.rigor, fileClass, projectRoot, state, filePath);
 
 if (!ok) {
   appendTelemetry(projectRoot, {

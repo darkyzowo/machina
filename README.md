@@ -29,6 +29,8 @@ verifier artifacts in `.machina/verifiers/` prove progress. Two user-facing mode
 | Feature | Tier | Mechanism |
 |---------|------|-----------|
 | Phase gates (rigor) | **A** | `phase-gate.js` blocks Edit/Write by phase |
+| CI / UX gates (rigor) | **A** | `ci_gates` / `ux_gate` block impl until verifier artifacts |
+| Mechanical advance | **A** | `machina-advance.js` via `/machina next` |
 | Pass ceiling (5 edits) | **A** | `pass-ceiling.js` blocks at 5 |
 | Secret patterns | **A** | `secret-guard.js` blocks writes (all modes) |
 | Verifier capture | **B** | `verifier-capture.js` on Bash → `.machina/verifiers/` |
@@ -137,6 +139,7 @@ make -C /path/to/machina bootstrap
 | `/machina rigor` | Full harness loop |
 | `/machina ship` | Fast path (default) |
 | `/machina next` | Advance phase when gates satisfied |
+| `/machina ux` | UX gate workflow + skill map |
 | `/machina reset` | Reset pass counter after human review |
 | `/machina rules` | Load full harness.md |
 | `/security-spec` | Create security spec (rigor gate) |
@@ -200,6 +203,15 @@ See `templates/cursor/README.md`.
 ---
 
 ## Changelog
+
+### v3.2.0 — Harness loop completion
+
+- **Mechanical `/machina next`:** `machina-advance.js` checks artifacts and advances phase
+- **CI + UX gates enforced:** `ci_gates` / `ux_gate` / `task_complete` block impl writes in rigor mode
+- **Ship security floor:** sensitive paths (`api/`, `auth/`, etc.) require security spec
+- **UI auto-detect:** `ui_touched` flag when editing frontend files
+- **`/machina ux`:** skill map (brainstorming → ui-ux-pro-max → playwright → agent-browser)
+- **Verifier capture:** pnpm/yarn/playwright/cargo/go test patterns; auto-advance after CI/UX
 
 ### v3.0.0 — Harness runtime
 

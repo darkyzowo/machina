@@ -22,6 +22,7 @@ for f in \
   .claude/hooks/harness-lib.js .claude/hooks/harness-hook-utils.js .claude/hooks/harness-init.js \
   .claude/hooks/phase-gate.js .claude/hooks/pass-ceiling.js \
   .claude/hooks/secret-guard.js .claude/hooks/verifier-capture.js \
+  .claude/hooks/machina-advance.js \
   .claude/commands/machina-status.md .claude/commands/machina-rigor.md \
   .claude/commands/machina-ship.md .claude/settings.example.json \
   .claude/statusline.sh .claude/statusline.js \
@@ -31,7 +32,7 @@ done
 
 echo
 echo "── Global harness install (~/.claude) ────────────────────────────────"
-for hook in harness-lib.js harness-hook-utils.js harness-init.js phase-gate.js pass-ceiling.js secret-guard.js verifier-capture.js; do
+for hook in harness-lib.js harness-hook-utils.js harness-init.js phase-gate.js pass-ceiling.js secret-guard.js verifier-capture.js machina-advance.js; do
   [ -f "$HOME_CLAUDE/hooks/$hook" ] && ok "~/.claude/hooks/$hook" || warn "~/.claude/hooks/$hook absent — run: make global-setup"
 done
 

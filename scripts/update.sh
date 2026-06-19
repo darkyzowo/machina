@@ -53,7 +53,7 @@ for hook in harness-lib.js harness-hook-utils.js harness-init.js phase-gate.js p
   diff_and_stage "$hook" "$REPO_ROOT/.claude/hooks/$hook" "$HOOKS_DIR/$hook"
 done
 
-for cmd in machina-status.md machina-rigor.md machina-ship.md machina-next.md machina-reset.md machina-rules.md security-spec.md security-review.md project.md casual.md; do
+for cmd in machina-status.md machina-rigor.md machina-ship.md machina-next.md machina-reset.md machina-rules.md machina-ux.md security-spec.md security-review.md project.md casual.md; do
   [ -f "$REPO_ROOT/.claude/commands/$cmd" ] && \
     diff_and_stage "/$cmd" "$REPO_ROOT/.claude/commands/$cmd" "$COMMANDS_DIR/$cmd"
 done

@@ -38,6 +38,32 @@ const IMPL_PATTERNS = [
   /\.svelte$/i,
 ];
 
+const UI_FILE_PATTERNS = [
+  /\.[cm]?[jt]sx$/i,
+  /\.vue$/i,
+  /\.svelte$/i,
+  /\.css$/i,
+  /\.scss$/i,
+  /\.less$/i,
+  /\/components\//i,
+  /\/app\/.*\/page\.[cm]?[jt]sx?$/i,
+  /\/pages\//i,
+  /\/views\//i,
+  /\/layouts?\//i,
+];
+
+const SECURITY_SENSITIVE_PATTERNS = [
+  /\/api\//i,
+  /\/auth\//i,
+  /\/middleware\.[cm]?[jt]s$/i,
+  /\/routes?\//i,
+  /\/lib\/auth\//i,
+  /\/server\//i,
+  /security/i,
+  /\/handlers?\//i,
+  /\/controllers?\//i,
+];
+
 function findProjectRoot(start) {
   let dir = path.resolve(start || process.cwd());
   for (let i = 0; i < 25; i++) {
@@ -63,6 +89,7 @@ function defaultState(profile) {
     current_task: null,
     pass_count: 0,
     ux_gate: 'pending',
+    ux_skip_reason: null,
     security_spec: 'pending',
     profile: profile || 'lean',
     ui_touched: false,
@@ -211,15 +238,218 @@ function projectUsesSpecKit(projectRoot) {
   return hasSpecMd(projectRoot) || fs.existsSync(path.join(projectRoot, 'specs'));
 }
 
-function allowedWrite(phase, rigor, fileClass, projectRoot, state) {
+function isUiFile(filePath) {
+  const norm = filePath.replace(/\\/g, '/');
+  return UI_FILE_PATTERNS.some((re) => re.test(norm));
+}
+
+function isSecuritySensitivePath(filePath) {
+  const norm = filePath.replace(/\\/g, '/');
+  return SECURITY_SENSITIVE_PATTERNS.some((re) => re.test(norm));
+}
+
+function needsSecuritySpec(projectRoot, filePath) {
+  return projectUsesSpecKit(projectRoot) || isSecuritySensitivePath(filePath);
+}
+
+function ciGatePassed(projectRoot, state) {
+  const exit = readVerifierExit(projectRoot, state, 'ci.txt');
+  return exit !== null && exit === 0;
+}
+
+function uxGatePassed(state, projectRoot) {
+  if (!state.ui_touched) return true;
+  if (state.ux_gate === 'skipped') return Boolean(state.ux_skip_reason);
+  const exit = readVerifierExit(projectRoot, state, 'ux.txt');
+  return exit !== null && exit === 0;
+}
+
+function markUiTouched(projectRoot, state) {
+  if (state.ui_touched) return state;
+  state.ui_touched = true;
+  state.ux_gate = 'pending';
+  writeState(projectRoot, state);
+  appendTelemetry(projectRoot, { event: 'ui_touched', task: state.current_task });
+  return state;
+}
+
+function skipUxGate(projectRoot, state, reason) {
+  if (!reason || !String(reason).trim()) {
+    return { ok: false, reason: 'UX skip requires a non-empty reason string.' };
+  }
+  state.ux_gate = 'skipped';
+  state.ux_skip_reason = String(reason).trim().slice(0, 240);
+  writeState(projectRoot, state);
+  appendTelemetry(projectRoot, { event: 'ux_skipped', reason: state.ux_skip_reason });
+  return { ok: true, phase: state.phase, message: `UX gate SKIPPED: ${state.ux_skip_reason}` };
+}
+
+function advancePhase(projectRoot, state, options = {}) {
+  if (state.rigor === 'ship') {
+    return { ok: false, reason: 'Ship mode has no phase machine. Use /machina rigor for the full loop.' };
+  }
+
+  const phase = state.phase;
+  let next = null;
+  let note = '';
+
+  switch (phase) {
+    case 'orient':
+      next = hasSpecMd(projectRoot) ? 'security_spec' : 'speckit_specify';
+      if (!state.current_task && hasTasksMd(projectRoot)) {
+        note = 'Set current_task from specs/**/tasks.md before red phase.';
+      }
+      break;
+
+    case 'speckit_constitution':
+    case 'speckit_specify':
+      if (!hasSpecMd(projectRoot)) {
+        return { ok: false, reason: 'Missing specs/**/spec.md — run /speckit.specify first.' };
+      }
+      next = 'security_spec';
+      break;
+
+    case 'security_spec':
+      if (!hasSecuritySpec(projectRoot)) {
+        return {
+          ok: false,
+          reason: 'Missing security spec with ## Abuse cases — run /security-spec first.',
+        };
+      }
+      next = hasPlanMd(projectRoot) ? 'speckit_tasks' : 'speckit_plan';
+      break;
+
+    case 'speckit_plan':
+      if (!hasPlanMd(projectRoot)) {
+        return { ok: false, reason: 'Missing specs/**/plan.md — run /speckit.plan first.' };
+      }
+      next = 'speckit_tasks';
+      break;
+
+    case 'speckit_tasks':
+      if (!hasTasksMd(projectRoot)) {
+        return { ok: false, reason: 'Missing specs/**/tasks.md — run /speckit.tasks first.' };
+      }
+      next = 'red';
+      break;
+
+    case 'red': {
+      const redExit = readVerifierExit(projectRoot, state, 'red.txt');
+      if (redExit === null) {
+        return {
+          ok: false,
+          reason: 'RED gate open: run failing tests (npm test / pytest) to capture red.txt with exit≠0.',
+        };
+      }
+      if (redExit === 0) {
+        return { ok: false, reason: 'RED artifact shows exit:0 — tests must fail before advancing.' };
+      }
+      next = 'green';
+      break;
+    }
+
+    case 'green': {
+      const greenExit = readVerifierExit(projectRoot, state, 'green.txt');
+      if (greenExit === null) {
+        return {
+          ok: false,
+          reason: 'GREEN gate open: run passing tests to capture green.txt with exit=0.',
+        };
+      }
+      if (greenExit !== 0) {
+        return { ok: false, reason: `GREEN artifact shows exit:${greenExit} — tests must pass before advancing.` };
+      }
+      next = 'refactor';
+      break;
+    }
+
+    case 'refactor':
+      next = 'ci_gates';
+      note = 'Run CI (npm run lint && npm run typecheck && npm test && npm run build) before ux/task_complete.';
+      break;
+
+    case 'ci_gates':
+      if (!ciGatePassed(projectRoot, state)) {
+        return {
+          ok: false,
+          reason:
+            'CI gate open: run lint/typecheck/build (or npm test) — need .machina/verifiers/<task>/ci.txt with exit=0.',
+        };
+      }
+      if (state.ui_touched) {
+        next = 'ux_gate';
+        note = 'UI touched — run /machina ux (agent-browser or Playwright) or /machina next --skip-ux "reason".';
+      } else {
+        next = 'task_complete';
+        state.ux_gate = 'skipped';
+        state.ux_skip_reason = 'no_ui_surface';
+      }
+      break;
+
+    case 'ux_gate':
+      if (options.skipUx) {
+        return skipUxGate(projectRoot, state, options.skipUx);
+      }
+      if (!state.ui_touched) {
+        next = 'task_complete';
+        break;
+      }
+      if (state.ux_gate === 'skipped' && state.ux_skip_reason) {
+        next = 'task_complete';
+        break;
+      }
+      if (!uxGatePassed(state, projectRoot)) {
+        return {
+          ok: false,
+          reason:
+            'UX gate open: capture ux.txt via agent-browser/Playwright, or /machina next --skip-ux "reason" (SKIPPED ≠ PASSED).',
+        };
+      }
+      next = 'task_complete';
+      state.ux_gate = 'passed';
+      break;
+
+    case 'task_complete':
+      next = 'orient';
+      state.current_task = null;
+      state.ui_touched = false;
+      state.ux_gate = 'pending';
+      state.ux_skip_reason = null;
+      state.security_spec = 'pending';
+      note = 'Task complete — set next current_task and /machina next or /machina rigor.';
+      break;
+
+    default:
+      return { ok: false, reason: `Unknown phase: ${phase}` };
+  }
+
+  if (!next) {
+    return { ok: false, reason: `Cannot advance from phase ${phase}.` };
+  }
+
+  const prev = state.phase;
+  state.phase = next;
+  writeState(projectRoot, state);
+  appendTelemetry(projectRoot, { event: 'phase_exit', phase: prev, outcome: 'advance' });
+  appendTelemetry(projectRoot, { event: 'phase_enter', phase: next });
+
+  return {
+    ok: true,
+    from: prev,
+    to: next,
+    message: `Advanced ${prev} → ${next}${note ? `. ${note}` : ''}`,
+  };
+}
+
+function allowedWrite(phase, rigor, fileClass, projectRoot, state, filePath) {
   if (rigor === 'ship') {
     if (fileClass === 'security' || fileClass === 'spec') return { ok: true };
-    if ((fileClass === 'impl' || fileClass === 'test') && projectUsesSpecKit(projectRoot)) {
+    if ((fileClass === 'impl' || fileClass === 'test') && filePath && needsSecuritySpec(projectRoot, filePath)) {
       if (!hasSecuritySpec(projectRoot)) {
         return {
           ok: false,
           reason:
-            'Ship security floor: specs/ project requires security.md with ## Abuse cases before code changes.',
+            'Ship security floor: security-sensitive path or specs/ project requires security.md with ## Abuse cases. Run /security-spec.',
         };
       }
     }
@@ -320,9 +550,46 @@ function allowedWrite(phase, rigor, fileClass, projectRoot, state) {
       return { ok: true };
 
     case 'refactor':
+      if (fileClass === 'impl' || fileClass === 'test') return { ok: true };
+      return { ok: true };
+
     case 'ci_gates':
+      if (fileClass === 'spec' || fileClass === 'security' || fileClass === 'other') return { ok: true };
+      if (fileClass === 'impl' || fileClass === 'test') {
+        if (!ciGatePassed(projectRoot, state)) {
+          return {
+            ok: false,
+            reason:
+              'Phase ci_gates: run lint/typecheck/build/test — need ci.txt with exit=0 before more code changes.',
+          };
+        }
+        return { ok: true };
+      }
+      return { ok: true };
+
     case 'ux_gate':
+      if (fileClass === 'spec' || fileClass === 'security' || fileClass === 'other') return { ok: true };
+      if (fileClass === 'impl' || fileClass === 'test') {
+        if (!state.ui_touched) return { ok: true };
+        if (state.ux_gate === 'skipped' && state.ux_skip_reason) return { ok: true };
+        if (!uxGatePassed(state, projectRoot)) {
+          return {
+            ok: false,
+            reason:
+              'Phase ux_gate: UI work requires ux.txt evidence (agent-browser/Playwright) or logged SKIPPED via /machina next --skip-ux.',
+          };
+        }
+        return { ok: true };
+      }
+      return { ok: true };
+
     case 'task_complete':
+      if (fileClass === 'impl' || fileClass === 'test') {
+        return {
+          ok: false,
+          reason: 'Phase task_complete: run /machina next to return to orient before new implementation.',
+        };
+      }
       return { ok: true };
 
     default:
@@ -350,13 +617,16 @@ function sessionId() {
 function harnessContext(projectRoot) {
   const state = readState(projectRoot);
   const lines = [
-    `MACHINA v3.1 | rigor=${state.rigor} | phase=${state.phase} | task=${state.current_task || 'none'} | pass=${state.pass_count}/5`,
+    `MACHINA v3.2 | rigor=${state.rigor} | phase=${state.phase} | task=${state.current_task || 'none'} | pass=${state.pass_count}/5${state.ui_touched ? ' | ui' : ''}`,
     state.rigor === 'rigor'
-      ? 'Rigor: full loop (spec → RED → GREEN → CI → UX). Impl blocked in red phase.'
-      : 'Ship: surgical edits + security floors only. Use /machina rigor for full loop.',
-    'Commands: /machina status | rigor | ship | next | reset | rules',
+      ? 'Rigor: spec → security → RED → GREEN → CI → UX. Use /machina next (mechanical advance).'
+      : 'Ship: surgical edits + security floors on sensitive paths. Use /machina rigor for full loop.',
+    'Commands: /machina status | next | rigor | ship | ux | reset | rules',
     'State: .machina/state.json | Verifiers: .machina/verifiers/<task>/',
   ];
+  if (state.rigor === 'rigor' && state.ui_touched && state.phase === 'ux_gate') {
+    lines.push('UX: /machina ux — agent-browser + ui-ux-pro-max skill before shipping UI.');
+  }
   return lines.join('\n');
 }
 
@@ -378,6 +648,15 @@ module.exports = {
   hasSpecMd,
   hasPlanMd,
   hasTasksMd,
+  projectUsesSpecKit,
+  isUiFile,
+  isSecuritySensitivePath,
+  needsSecuritySpec,
+  ciGatePassed,
+  uxGatePassed,
+  markUiTouched,
+  skipUxGate,
+  advancePhase,
   allowedWrite,
   appendTelemetry,
   sessionId,

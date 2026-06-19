@@ -74,7 +74,7 @@ echo ""
 echo "→ Installing harness hooks..."
 
 mkdir -p "$HOOKS_DIR"
-for hook in harness-lib.js harness-hook-utils.js harness-init.js phase-gate.js pass-ceiling.js secret-guard.js verifier-capture.js; do
+for hook in harness-lib.js harness-hook-utils.js harness-init.js phase-gate.js pass-ceiling.js secret-guard.js verifier-capture.js machina-advance.js; do
   cp "$REPO_ROOT/.claude/hooks/$hook" "$HOOKS_DIR/$hook"
   echo "  ✓ $hook"
 done
@@ -89,7 +89,7 @@ echo ""
 echo "→ Installing /machina commands..."
 
 mkdir -p "$COMMANDS_DIR"
-for cmd in machina-status.md machina-rigor.md machina-ship.md machina-next.md machina-reset.md machina-rules.md security-review.md security-spec.md project.md casual.md; do
+for cmd in machina-status.md machina-rigor.md machina-ship.md machina-next.md machina-reset.md machina-rules.md machina-ux.md security-review.md security-spec.md project.md casual.md; do
   if [ -f "$REPO_ROOT/.claude/commands/$cmd" ]; then
     cp "$REPO_ROOT/.claude/commands/$cmd" "$COMMANDS_DIR/$cmd"
     echo "  ✓ /${cmd%.md}"
