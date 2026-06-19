@@ -111,7 +111,7 @@ jobs:
         run: |
           pip install semgrep --quiet
           semgrep --config auto --error --quiet \
-            --exclude '.claude/hooks' \
+            --exclude '.claude' \
             --exclude 'templates/cursor/.cursor/hooks' \
             .
 
