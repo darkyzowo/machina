@@ -47,8 +47,23 @@ const {
   advancePhase,
   isSecuritySensitivePath,
   isUiFile,
-  ciGatePassed,
+  findFirstUncheckedTask,
+  prepareForRedPhase,
+  completeCurrentTaskInFile,
+  markTaskDoneInFile,
 } = require(lib);
+
+function writeTasksMd() {
+  const specs = path.join(TMP, 'specs', 'feature-a');
+  fs.mkdirSync(specs, { recursive: true });
+  fs.writeFileSync(
+    path.join(specs, 'tasks.md'),
+    '- [x] T001 Done task\n- [ ] T002 Implement widget in src/widget.ts\n- [ ] T003 Polish UI in src/widget.tsx\n'
+  );
+  fs.writeFileSync(path.join(specs, 'security.md'), '## Abuse cases\n- x\n');
+  fs.writeFileSync(path.join(specs, 'plan.md'), '# plan\n');
+  fs.writeFileSync(path.join(specs, 'spec.md'), '# spec\n');
+}
 
 setupState({ phase: 'red', rigor: 'rigor' });
 
@@ -96,6 +111,22 @@ s = spawnSync('node', [sg], {
   encoding: 'utf8',
 });
 assert(s.status === 0, 'secret-guard allows normal code');
+
+writeTasksMd();
+const open = findFirstUncheckedTask(TMP);
+assert(open && open.id === 'T002', 'findFirstUncheckedTask picks T002');
+
+setupState({ phase: 'speckit_tasks', rigor: 'rigor' });
+let st = JSON.parse(fs.readFileSync(path.join(TMP, '.machina', 'state.json'), 'utf8'));
+adv = advancePhase(TMP, st);
+assert(adv.ok && adv.to === 'red' && st.current_task === 'T002', 'speckit_tasks→red assigns T002');
+
+setupState({ phase: 'task_complete', rigor: 'rigor', current_task: 'T002' });
+st = JSON.parse(fs.readFileSync(path.join(TMP, '.machina', 'state.json'), 'utf8'));
+adv = advancePhase(TMP, st);
+assert(adv.ok && adv.to === 'red' && st.current_task === 'T003', 'task_complete rolls to T003');
+const tasksContent = fs.readFileSync(path.join(TMP, 'specs', 'feature-a', 'tasks.md'), 'utf8');
+assert(tasksContent.includes('[x] T002'), 'marks completed task checkbox');
 
 try { fs.rmSync(TMP, { recursive: true, force: true }); } catch (_) {}
 " "$ROOT"

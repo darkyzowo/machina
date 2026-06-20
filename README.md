@@ -204,6 +204,13 @@ See `templates/cursor/README.md`.
 
 ## Changelog
 
+### v3.3.0 — Task auto-assignment from tasks.md
+
+- **`current_task` auto-pick:** first unchecked `- [ ]` in `specs/**/tasks.md` when entering `red`
+- **Task rollover:** `task_complete` marks prior task `[x]`, assigns next, jumps to `red`
+- **Orient fast-path:** skips to `red` when security + plan + tasks already exist
+- **Session recovery:** `harness-init` assigns task if phase is `red` without `current_task`
+
 ### v3.2.0 — Harness loop completion
 
 - **Mechanical `/machina next`:** `machina-advance.js` checks artifacts and advances phase

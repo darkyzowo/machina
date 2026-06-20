@@ -26,16 +26,16 @@ On failure (exit 1), show stderr and list missing artifacts from `/machina statu
 
 | From | Requires | To |
 |------|----------|-----|
-| orient | — | speckit_specify or security_spec |
+| orient | — | red (if specs ready) or speckit_specify / security_spec |
 | speckit_specify | spec.md | security_spec |
 | security_spec | security.md + Abuse cases | speckit_plan or speckit_tasks |
 | speckit_plan | plan.md | speckit_tasks |
-| speckit_tasks | tasks.md | red |
+| speckit_tasks | tasks.md | red (auto-assigns `current_task` from first `- [ ]`) |
 | red | red.txt exit≠0 | green |
 | green | green.txt exit=0 | refactor |
 | refactor | — | ci_gates |
 | ci_gates | ci.txt exit=0 | ux_gate (if UI) or task_complete |
 | ux_gate | ux.txt exit=0 or logged SKIPPED | task_complete |
-| task_complete | — | orient |
+| task_complete | — | red (next `- [ ]` task) or orient (all done; prior task → `[x]`) |
 
 After advancing, suggest the **next concrete action** (e.g. run tests, `/security-spec`, `/machina ux`).

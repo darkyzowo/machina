@@ -12,6 +12,8 @@ const {
   readProfile,
   harnessContext,
   appendTelemetry,
+  hasTasksMd,
+  prepareForRedPhase,
 } = require('./harness-lib');
 
 let projectCwd = process.cwd();
@@ -36,7 +38,11 @@ try {
     state = defaultState(profile);
     writeState(projectRoot, state);
   }
-  appendTelemetry(projectRoot, { event: 'session_start', rigor: state.rigor, phase: state.phase });
+  if (state.rigor === 'rigor' && state.phase === 'red' && !state.current_task && hasTasksMd(projectRoot)) {
+    const prep = prepareForRedPhase(projectRoot, state);
+    if (prep.ok) writeState(projectRoot, state);
+  }
+  appendTelemetry(projectRoot, { event: 'session_start', rigor: state.rigor, phase: state.phase, task: state.current_task });
 } catch (_) {}
 
 const harnessMd = path.join(os.homedir(), '.claude', 'machina', 'harness.md');

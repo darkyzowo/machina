@@ -12,7 +12,8 @@ Print the current Machina harness state for this project.
 3. Report:
    - rigor (ship | rigor)
    - phase
-   - current_task
+   - current_task (+ current_task_body from state if set)
+   - open tasks: first unchecked line from `specs/**/tasks.md` (if any)
    - pass_count / 5
    - missing verifier artifacts for current phase
 4. If `.machina/` missing, tell user to run `make bootstrap`.

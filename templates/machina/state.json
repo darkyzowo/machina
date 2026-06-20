@@ -2,6 +2,7 @@
   "phase": "orient",
   "rigor": "ship",
   "current_task": null,
+  "current_task_body": null,
   "pass_count": 0,
   "ux_gate": "pending",
   "ux_skip_reason": null,

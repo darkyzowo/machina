@@ -9,11 +9,13 @@ Switch this session to **rigor** mode (full harness loop).
 
 1. Write `rigor` to `.machina/rigor`
 2. Update `.machina/state.json`: set `rigor` to `rigor`
-3. If phase is `orient`, suggest next phase based on project:
-   - No `specs/**/spec.md` → `speckit_specify` (run `/speckit.specify`)
-   - Has spec, no security.md with Abuse cases → `security_spec` (run `/security-spec`)
-   - Has tasks → set `current_task` from first unchecked item in `specs/**/tasks.md`, phase `red`
+3. Suggest next action from project state:
+   - No `specs/**/spec.md` → run `/speckit.specify`, phase `speckit_specify`
+   - Missing security abuse cases → `/security-spec`, phase `security_spec`
+   - Specs ready (security + plan + tasks) → run `/machina next` (assigns `T001`… from tasks.md → `red`)
 
-Confirm: `Rigor mode active. Full loop enforced. Phase gates block impl in red.`
+**Task assignment is mechanical** when advancing to `red` — first unchecked `- [ ]` line in `specs/**/tasks.md` becomes `current_task` and verifier directory name.
+
+Confirm: `Rigor mode active. Full loop enforced. Use /machina next to advance.`
 
 Alias: `/project` (deprecated — use `/machina rigor`).

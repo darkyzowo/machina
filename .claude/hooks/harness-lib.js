@@ -87,6 +87,7 @@ function defaultState(profile) {
     phase: 'orient',
     rigor: 'ship',
     current_task: null,
+    current_task_body: null,
     pass_count: 0,
     ux_gate: 'pending',
     ux_skip_reason: null,
@@ -234,6 +235,149 @@ function hasTasksMd(projectRoot) {
   return false;
 }
 
+function listTasksMdPaths(projectRoot) {
+  const specsDir = path.join(projectRoot, 'specs');
+  if (!fs.existsSync(specsDir)) return [];
+  const paths = [];
+  const rootTasks = path.join(specsDir, 'tasks.md');
+  if (fs.existsSync(rootTasks)) paths.push(rootTasks);
+  for (const ent of fs.readdirSync(specsDir, { withFileTypes: true })) {
+    if (!ent.isDirectory()) continue;
+    const fp = path.join(specsDir, ent.name, 'tasks.md');
+    if (fs.existsSync(fp)) paths.push(fp);
+  }
+  return [...new Set(paths)].sort();
+}
+
+function parseTaskLine(line) {
+  const unchecked = line.match(/^\s*-\s*\[\s\]\s*(.+)$/);
+  const checked = line.match(/^\s*-\s*\[[xX]\]\s*(.+)$/);
+  if (!unchecked && !checked) return null;
+  const body = (unchecked || checked)[1].trim();
+  const idMatch = body.match(/\b(T\d+)\b/i);
+  return {
+    id: idMatch ? idMatch[1].toUpperCase() : null,
+    body,
+    done: Boolean(checked),
+    line,
+  };
+}
+
+function scanTasksFile(filePath) {
+  const lines = fs.readFileSync(filePath, 'utf8').split('\n');
+  const tasks = [];
+  for (let i = 0; i < lines.length; i++) {
+    const parsed = parseTaskLine(lines[i]);
+    if (parsed) tasks.push({ ...parsed, filePath, lineIndex: i });
+  }
+  return tasks;
+}
+
+function findFirstUncheckedTask(projectRoot) {
+  for (const fp of listTasksMdPaths(projectRoot)) {
+    const open = scanTasksFile(fp).find((t) => !t.done);
+    if (open) return open;
+  }
+  return null;
+}
+
+function findTaskById(projectRoot, taskId) {
+  if (!taskId) return null;
+  const want = String(taskId).toUpperCase();
+  for (const fp of listTasksMdPaths(projectRoot)) {
+    for (const t of scanTasksFile(fp)) {
+      if (t.id === want) return t;
+    }
+  }
+  return null;
+}
+
+function markTaskDoneInFile(task) {
+  if (!task || task.done) return false;
+  const lines = fs.readFileSync(task.filePath, 'utf8').split('\n');
+  const line = lines[task.lineIndex];
+  if (!/^\s*-\s*\[\s\]/.test(line)) return false;
+  lines[task.lineIndex] = line.replace(/\[\s\]/, '[x]');
+  fs.writeFileSync(task.filePath, lines.join('\n'), 'utf8');
+  return true;
+}
+
+function specsReadyForRed(projectRoot) {
+  return hasSecuritySpec(projectRoot) && hasPlanMd(projectRoot) && hasTasksMd(projectRoot);
+}
+
+function resetTaskSessionState(state) {
+  state.pass_count = 0;
+  state.ui_touched = false;
+  state.ux_gate = 'pending';
+  state.ux_skip_reason = null;
+  return state;
+}
+
+function clearPassCounter(projectRoot) {
+  const sid = sessionId();
+  const cf = path.join(projectRoot, '.machina', 'pass-counts', `${sid}.json`);
+  try {
+    fs.unlinkSync(cf);
+  } catch (_) {}
+}
+
+function taskIdFromEntry(task) {
+  if (task.id) return task.id;
+  const base = path.basename(path.dirname(task.filePath));
+  return `${base}-L${task.lineIndex + 1}`;
+}
+
+function assignTaskToState(state, task) {
+  state.current_task = taskIdFromEntry(task);
+  state.current_task_body = task.body.slice(0, 500);
+  resetTaskSessionState(state);
+  return state;
+}
+
+function prepareForRedPhase(projectRoot, state) {
+  if (state.current_task) {
+    const existing = findTaskById(projectRoot, state.current_task);
+    if (existing && !existing.done) {
+      return {
+        ok: true,
+        assigned: false,
+        taskId: state.current_task,
+        message: `Task ${state.current_task}: ${existing.body.slice(0, 100)}`,
+      };
+    }
+  }
+  const next = findFirstUncheckedTask(projectRoot);
+  if (!next) {
+    return { ok: false, reason: 'No unchecked tasks in specs/**/tasks.md.' };
+  }
+  assignTaskToState(state, next);
+  clearPassCounter(projectRoot);
+  appendTelemetry(projectRoot, {
+    event: 'task_assign',
+    task: state.current_task,
+    body: next.body.slice(0, 120),
+    file: path.basename(next.filePath),
+  });
+  return {
+    ok: true,
+    assigned: true,
+    taskId: state.current_task,
+    message: `Assigned ${state.current_task}: ${next.body.slice(0, 100)}${next.body.length > 100 ? '…' : ''}`,
+  };
+}
+
+function completeCurrentTaskInFile(projectRoot, state) {
+  if (!state.current_task) return false;
+  const task = findTaskById(projectRoot, state.current_task);
+  if (!task || task.done) return false;
+  const ok = markTaskDoneInFile(task);
+  if (ok) {
+    appendTelemetry(projectRoot, { event: 'task_complete', task: state.current_task });
+  }
+  return ok;
+}
+
 function projectUsesSpecKit(projectRoot) {
   return hasSpecMd(projectRoot) || fs.existsSync(path.join(projectRoot, 'specs'));
 }
@@ -295,9 +439,13 @@ function advancePhase(projectRoot, state, options = {}) {
 
   switch (phase) {
     case 'orient':
-      next = hasSpecMd(projectRoot) ? 'security_spec' : 'speckit_specify';
-      if (!state.current_task && hasTasksMd(projectRoot)) {
-        note = 'Set current_task from specs/**/tasks.md before red phase.';
+      if (specsReadyForRed(projectRoot)) {
+        next = 'red';
+        note = 'Specs ready — assigning next open task from tasks.md.';
+      } else if (hasSpecMd(projectRoot)) {
+        next = 'security_spec';
+      } else {
+        next = 'speckit_specify';
       }
       break;
 
@@ -409,15 +557,27 @@ function advancePhase(projectRoot, state, options = {}) {
       state.ux_gate = 'passed';
       break;
 
-    case 'task_complete':
-      next = 'orient';
-      state.current_task = null;
-      state.ui_touched = false;
-      state.ux_gate = 'pending';
-      state.ux_skip_reason = null;
-      state.security_spec = 'pending';
-      note = 'Task complete — set next current_task and /machina next or /machina rigor.';
+    case 'task_complete': {
+      completeCurrentTaskInFile(projectRoot, state);
+      const nextTask = findFirstUncheckedTask(projectRoot);
+      if (nextTask) {
+        assignTaskToState(state, nextTask);
+        clearPassCounter(projectRoot);
+        next = 'red';
+        note = `Next task ${state.current_task} — write failing test first.`;
+        appendTelemetry(projectRoot, {
+          event: 'task_assign',
+          task: state.current_task,
+          body: nextTask.body.slice(0, 120),
+        });
+      } else {
+        next = 'orient';
+        state.current_task = null;
+        state.current_task_body = null;
+        note = 'All tasks in tasks.md complete.';
+      }
       break;
+    }
 
     default:
       return { ok: false, reason: `Unknown phase: ${phase}` };
@@ -425,6 +585,16 @@ function advancePhase(projectRoot, state, options = {}) {
 
   if (!next) {
     return { ok: false, reason: `Cannot advance from phase ${phase}.` };
+  }
+
+  if (next === 'red' && phase !== 'task_complete') {
+    const prep = prepareForRedPhase(projectRoot, state);
+    if (!prep.ok) {
+      return { ok: false, reason: prep.reason };
+    }
+    if (prep.message) {
+      note = note ? `${note} ${prep.message}` : prep.message;
+    }
   }
 
   const prev = state.phase;
@@ -519,6 +689,12 @@ function allowedWrite(phase, rigor, fileClass, projectRoot, state, filePath) {
       return { ok: true };
 
     case 'red':
+      if (!state.current_task && hasTasksMd(projectRoot)) {
+        return {
+          ok: false,
+          reason: 'Phase red: no current_task — run /machina next to assign from specs/**/tasks.md.',
+        };
+      }
       if (fileClass === 'test') return { ok: true };
       if (fileClass === 'spec' || fileClass === 'security') return { ok: true };
       if (fileClass === 'impl') {
@@ -616,8 +792,13 @@ function sessionId() {
 
 function harnessContext(projectRoot) {
   const state = readState(projectRoot);
+  const taskSuffix =
+    state.current_task_body && state.current_task
+      ? ` (${state.current_task_body.length > 60 ? state.current_task_body.slice(0, 60) + '…' : state.current_task_body})`
+      : '';
+  const taskLine = state.current_task ? `task=${state.current_task}${taskSuffix}` : 'task=none';
   const lines = [
-    `MACHINA v3.2 | rigor=${state.rigor} | phase=${state.phase} | task=${state.current_task || 'none'} | pass=${state.pass_count}/5${state.ui_touched ? ' | ui' : ''}`,
+    `MACHINA v3.3 | rigor=${state.rigor} | phase=${state.phase} | ${taskLine} | pass=${state.pass_count}/5${state.ui_touched ? ' | ui' : ''}`,
     state.rigor === 'rigor'
       ? 'Rigor: spec → security → RED → GREEN → CI → UX. Use /machina next (mechanical advance).'
       : 'Ship: surgical edits + security floors on sensitive paths. Use /machina rigor for full loop.',
@@ -648,6 +829,14 @@ module.exports = {
   hasSpecMd,
   hasPlanMd,
   hasTasksMd,
+  listTasksMdPaths,
+  findFirstUncheckedTask,
+  findTaskById,
+  markTaskDoneInFile,
+  specsReadyForRed,
+  prepareForRedPhase,
+  completeCurrentTaskInFile,
+  assignTaskToState,
   projectUsesSpecKit,
   isUiFile,
   isSecuritySensitivePath,

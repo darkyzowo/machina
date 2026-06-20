@@ -38,6 +38,7 @@ orient → speckit_specify → security_spec → speckit_plan → speckit_tasks 
 
 - State: `.machina/state.json`
 - Proof: `.machina/verifiers/<task>/red.txt`, `green.txt`, `ci.txt`, `ux.txt`
+- **Tasks:** `current_task` auto-assigned from first `- [ ]` line in `specs/**/tasks.md` when entering `red` (spec-kit `T001` IDs preferred). Completed tasks marked `[x]` on `task_complete` → next.
 - Commands: `/machina status` | `next` | `reset`
 
 **One phase per turn:** red phase allows test files only; green allows impl after RED artifact.
