@@ -64,28 +64,64 @@ const SECURITY_SENSITIVE_PATTERNS = [
   /\/controllers?\//i,
 ];
 
-function findProjectRoot(start) {
+function globalClaudeDir() {
+  return path.join(os.homedir(), '.claude');
+}
+
+function globalMachinaDir() {
+  return path.join(globalClaudeDir(), '.machina');
+}
+
+/** Walk cwd → ancestors; prefer project .machina, else ~/.claude/.machina (never ~/machina). */
+function resolveHarnessRoot(start) {
+  const homeResolved = path.resolve(os.homedir());
+  const globalRoot = globalClaudeDir();
   let dir = path.resolve(start || process.cwd());
+
   for (let i = 0; i < 25; i++) {
-    if (
-      fs.existsSync(path.join(dir, '.machina')) ||
-      fs.existsSync(path.join(dir, '.agent-profile')) ||
-      fs.existsSync(path.join(dir, 'AGENTS.md')) ||
-      fs.existsSync(path.join(dir, 'CLAUDE.md'))
-    ) {
-      return dir;
+    const machinaPath = path.join(dir, '.machina');
+    if (fs.existsSync(machinaPath)) {
+      const resolved = path.resolve(dir);
+      if (resolved === path.resolve(globalRoot)) {
+        return { root: globalRoot, tier: 'global', machinaDir: machinaPath };
+      }
+      if (resolved === homeResolved) {
+        // Ignore erroneous ~/.machina — fall through to global default below
+      } else {
+        return { root: dir, tier: 'project', machinaDir: machinaPath };
+      }
     }
     const parent = path.dirname(dir);
     if (parent === dir) break;
     dir = parent;
   }
-  return path.resolve(start || process.cwd());
+
+  const machinaDir = globalMachinaDir();
+  try {
+    fs.mkdirSync(path.join(machinaDir, 'verifiers'), { recursive: true });
+  } catch (_) {}
+  return { root: globalRoot, tier: 'global', machinaDir };
 }
 
-function defaultState(profile) {
+function findProjectRoot(start) {
+  return resolveHarnessRoot(start).root;
+}
+
+/** Tier A rigor gates: pass ceiling, phase machine, verifier capture. */
+function enforcementActive(resolved, state) {
+  return resolved.tier === 'project' && state.rigor === 'rigor';
+}
+
+/** Ship-mode security floor on sensitive paths — project repos only. */
+function projectHarnessActive(resolved) {
+  return resolved.tier === 'project';
+}
+
+function defaultState(profile, tier) {
   return {
     phase: 'orient',
     rigor: 'ship',
+    scope: tier === 'global' ? 'global' : 'project',
     current_task: null,
     current_task_body: null,
     pass_count: 0,
@@ -790,15 +826,26 @@ function sessionId() {
   );
 }
 
-function harnessContext(projectRoot) {
-  const state = readState(projectRoot);
+function harnessContext(projectRoot, tier) {
+  const resolved = tier ? { root: projectRoot, tier } : resolveHarnessRoot(projectRoot);
+  const state = readState(resolved.root);
+
+  if (resolved.tier === 'global') {
+    return [
+      'MACHINA global | rigor=ship | enforcement=off | pass=off',
+      'Project harness: bootstrap repo .machina/ → /machina rigor for full loop.',
+      'Full spec: /machina rules',
+    ].join('\n');
+  }
+
   const taskSuffix =
     state.current_task_body && state.current_task
       ? ` (${state.current_task_body.length > 60 ? state.current_task_body.slice(0, 60) + '…' : state.current_task_body})`
       : '';
   const taskLine = state.current_task ? `task=${state.current_task}${taskSuffix}` : 'task=none';
+  const passLabel = state.rigor === 'rigor' ? `${state.pass_count}/5` : 'off';
   const lines = [
-    `MACHINA v3.3 | rigor=${state.rigor} | phase=${state.phase} | ${taskLine} | pass=${state.pass_count}/5${state.ui_touched ? ' | ui' : ''}`,
+    `MACHINA v3.3 | rigor=${state.rigor} | phase=${state.phase} | ${taskLine} | pass=${passLabel}${state.ui_touched ? ' | ui' : ''}`,
     state.rigor === 'rigor'
       ? 'Rigor: spec → security → RED → GREEN → CI → UX. Use /machina next (mechanical advance).'
       : 'Ship: surgical edits + security floors on sensitive paths. Use /machina rigor for full loop.',
@@ -813,7 +860,12 @@ function harnessContext(projectRoot) {
 
 module.exports = {
   PHASES,
+  globalClaudeDir,
+  globalMachinaDir,
+  resolveHarnessRoot,
   findProjectRoot,
+  enforcementActive,
+  projectHarnessActive,
   defaultState,
   readState,
   writeState,

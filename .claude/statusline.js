@@ -90,28 +90,32 @@ async function readStdin() {
 }
 
 function findMachinaRoot(start) {
-  let dir = path.resolve(start || process.cwd());
-  for (let i = 0; i < 25; i++) {
-    if (fs.existsSync(path.join(dir, '.machina'))) return dir;
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
+  try {
+    const { resolveHarnessRoot } = require('./harness-lib');
+    const { root, tier, machinaDir } = resolveHarnessRoot(start);
+    if (tier === 'project' || fs.existsSync(machinaDir)) return root;
+  } catch (_) {}
   return null;
 }
 
 function readMachinaState(root) {
-  const out = { rigor: '—', phase: '—', pass: '—' };
+  const out = { rigor: '—', phase: '—', pass: '—', tier: 'global' };
   if (!root) return out;
   try {
-    const state = JSON.parse(fs.readFileSync(path.join(root, '.machina', 'state.json'), 'utf8'));
+    const { resolveHarnessRoot } = require('./harness-lib');
+    const resolved = resolveHarnessRoot(root);
+    out.tier = resolved.tier;
+    const state = JSON.parse(fs.readFileSync(path.join(resolved.machinaDir, 'state.json'), 'utf8'));
     out.rigor = state.rigor || 'ship';
     out.phase = state.phase || 'orient';
-    out.pass = `${state.pass_count || 0}/5`;
+    out.pass = state.rigor === 'rigor' ? `${state.pass_count || 0}/5` : 'off';
   } catch (_) {}
   try {
-    const r = fs.readFileSync(path.join(root, '.machina', 'rigor'), 'utf8').trim();
-    if (r) out.rigor = r;
+    const rigorFile = path.join(require('os').homedir(), '.claude', '.machina', 'rigor');
+    if (out.tier === 'global') {
+      const r = fs.readFileSync(rigorFile, 'utf8').trim();
+      if (r) out.rigor = r;
+    }
   } catch (_) {}
   return out;
 }
@@ -237,7 +241,7 @@ async function main() {
   if (cav) parts.push(cav);
 
   parts.push(
-    `${c(ORANGE, 'MACHINA')} ${c(DIM, m.rigor)} ${c(CYAN, m.phase)} ${c(DIM, 'pass:')}${c(YELLOW, m.pass)}`
+    `${c(ORANGE, 'MACHINA')} ${c(DIM, m.tier === 'project' ? m.rigor : 'global')} ${c(CYAN, m.phase)} ${c(DIM, 'pass:')}${c(YELLOW, m.pass)}`
   );
 
   const model = shortModel(payload);

@@ -5,8 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const {
-  findProjectRoot,
-  defaultState,
+  resolveHarnessRoot,
   readState,
   writeState,
   readProfile,
@@ -14,6 +13,9 @@ const {
   appendTelemetry,
   hasTasksMd,
   prepareForRedPhase,
+  enforcementActive,
+  projectHarnessActive,
+  defaultState,
 } = require('./harness-lib');
 
 let projectCwd = process.cwd();
@@ -27,22 +29,29 @@ if (!process.stdin.isTTY) {
   } catch (_) {}
 }
 
-const projectRoot = findProjectRoot(projectCwd);
-const machinaDir = path.join(projectRoot, '.machina');
+const resolved = resolveHarnessRoot(projectCwd);
+const { root: projectRoot, tier, machinaDir } = resolved;
 
 try {
   fs.mkdirSync(path.join(machinaDir, 'verifiers'), { recursive: true });
   const profile = readProfile(projectRoot);
   let state = readState(projectRoot);
-  if (!fs.existsSync(path.join(machinaDir, 'state.json'))) {
-    state = defaultState(profile);
+  const stateFile = path.join(machinaDir, 'state.json');
+  if (!fs.existsSync(stateFile)) {
+    state = defaultState(profile, tier);
     writeState(projectRoot, state);
   }
-  if (state.rigor === 'rigor' && state.phase === 'red' && !state.current_task && hasTasksMd(projectRoot)) {
+  if (tier === 'project' && state.rigor === 'rigor' && state.phase === 'red' && !state.current_task && hasTasksMd(projectRoot)) {
     const prep = prepareForRedPhase(projectRoot, state);
     if (prep.ok) writeState(projectRoot, state);
   }
-  appendTelemetry(projectRoot, { event: 'session_start', rigor: state.rigor, phase: state.phase, task: state.current_task });
+  appendTelemetry(projectRoot, {
+    event: 'session_start',
+    tier,
+    rigor: state.rigor,
+    phase: state.phase,
+    task: state.current_task,
+  });
 } catch (_) {}
 
 const harnessMd = path.join(os.homedir(), '.claude', 'machina', 'harness.md');
@@ -53,4 +62,4 @@ try {
   }
 } catch (_) {}
 
-process.stdout.write('## MACHINA HARNESS ACTIVE\n\n' + harnessContext(projectRoot) + rulesNote);
+process.stdout.write('## MACHINA HARNESS ACTIVE\n\n' + harnessContext(projectRoot, tier) + rulesNote);

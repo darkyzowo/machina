@@ -1,22 +1,27 @@
 #!/usr/bin/env node
-// pass-ceiling.js — PreToolUse (Edit|Write): Tier A pass ceiling (project-scoped)
+// pass-ceiling.js — PreToolUse (Edit|Write): Tier A pass ceiling (project + rigor only)
 
 const fs = require('fs');
 const path = require('path');
 const { readHookInput, block, warn, hookCwd } = require('./harness-hook-utils');
 const {
-  findProjectRoot,
+  resolveHarnessRoot,
   readState,
   writeState,
   sessionId,
   appendTelemetry,
+  enforcementActive,
 } = require('./harness-lib');
 
 const input = readHookInput();
 const toolInput = input.tool_input || {};
 const filePath = toolInput.file_path || toolInput.path || '';
-const projectRoot = findProjectRoot(hookCwd(input, filePath));
+const resolved = resolveHarnessRoot(hookCwd(input, filePath));
+const state = readState(resolved.root);
 
+if (!enforcementActive(resolved, state)) process.exit(0);
+
+const projectRoot = resolved.root;
 const sid = sessionId();
 const countsDir = path.join(projectRoot, '.machina', 'pass-counts');
 const counterFile = path.join(countsDir, `${sid}.json`);
@@ -46,7 +51,6 @@ try {
   fs.writeFileSync(counterFile, JSON.stringify(counter), 'utf8');
 } catch (_) {}
 
-const state = readState(projectRoot);
 state.pass_count = counter.count;
 writeState(projectRoot, state);
 

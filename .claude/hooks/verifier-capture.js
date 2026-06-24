@@ -1,21 +1,28 @@
 #!/usr/bin/env node
-// verifier-capture.js — PostToolUse + PostToolUseFailure (Bash): verifier artifacts
+// verifier-capture.js — PostToolUse + PostToolUseFailure (Bash): verifier artifacts (project + rigor only)
 
 const fs = require('fs');
 const path = require('path');
 const { readHookInput, hookCwd } = require('./harness-hook-utils');
 const {
-  findProjectRoot,
+  resolveHarnessRoot,
   readState,
   writeState,
   verifierDir,
   appendTelemetry,
+  enforcementActive,
 } = require('./harness-lib');
 
 const input = readHookInput();
 const toolInput = input.tool_input || {};
 const command = toolInput.command || '';
 if (!command) process.exit(0);
+
+const resolved = resolveHarnessRoot(hookCwd(input, ''));
+const state = readState(resolved.root);
+if (!enforcementActive(resolved, state)) process.exit(0);
+
+const projectRoot = resolved.root;
 
 const { stdout, stderr, exitCode } = (function parse() {
   const tr = input.tool_response || {};
@@ -31,8 +38,6 @@ const { stdout, stderr, exitCode } = (function parse() {
   };
 })();
 
-const projectRoot = findProjectRoot(hookCwd(input, ''));
-const state = readState(projectRoot);
 const outDir = verifierDir(projectRoot, state);
 fs.mkdirSync(outDir, { recursive: true });
 
