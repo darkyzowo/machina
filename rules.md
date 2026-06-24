@@ -1,4 +1,4 @@
-# Machina Harness Spec v3.0 (legacy alias — canonical: harness.md)
+# Machina Harness Spec v4.0 (legacy alias — canonical: harness.md)
 # Source: ~/.claude/machina/harness.md — update via: make update
 
 ---

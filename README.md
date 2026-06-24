@@ -2,8 +2,14 @@
 
 **Claude Code loop harness — mechanically enforced engineering discipline.**
 
-Machina v3 is a **harness runtime**, not a rules dump. Hooks gate tool use by phase;
-verifier artifacts in `.machina/verifiers/` prove progress. Two user-facing modes:
+Machina v4 is a **two-tier harness runtime**: a lightweight **global** layer for everyday CLI
+use, and an opt-in **project rigor** loop when you bootstrap a repo. Hooks gate tool use by
+phase; verifier artifacts in `.machina/verifiers/` prove progress.
+
+| Tier | Location | Default | Enforcement |
+|------|----------|---------|-------------|
+| **Global** | `~/.claude/.machina/` | ship | secret-guard only |
+| **Project** | `repo/.machina/` | ship → `/machina rigor` | full loop when rigor |
 
 | Rigor | Command | What runs |
 |-------|---------|-----------|
@@ -26,19 +32,18 @@ verifier artifacts in `.machina/verifiers/` prove progress. Two user-facing mode
 
 ## Key features (with enforcement tier)
 
-| Feature | Tier | Mechanism |
-|---------|------|-----------|
-| Phase gates (rigor) | **A** | `phase-gate.js` blocks Edit/Write by phase |
-| CI / UX gates (rigor) | **A** | `ci_gates` / `ux_gate` block impl until verifier artifacts |
-| Mechanical advance | **A** | `machina-advance.js` via `/machina next` |
-| Pass ceiling (5 edits) | **A** | `pass-ceiling.js` blocks at 5 |
-| Secret patterns | **A** | `secret-guard.js` blocks writes (all modes) |
-| Verifier capture | **B** | `verifier-capture.js` on Bash → `.machina/verifiers/` |
-| TDD RED→GREEN | **A** | red phase = tests only; green needs `red.txt` exit≠0 |
-| Security abuse cases | **A** (CI) | `check-spec-security.sh` + phase gate locally |
-| UX gate | **B** | Evidence in `ux.txt` or SKIPPED in state |
-| Surgical changes | C | Advisory — ship mode default |
-| Telemetry | B | `.machina/telemetry.jsonl` — `make report` |
+| Feature | Tier | Scope | Mechanism |
+|---------|------|-------|-----------|
+| Secret patterns | **A** | global + project | `secret-guard.js` blocks writes |
+| Phase gates | **A** | project + rigor | `phase-gate.js` blocks Edit/Write by phase |
+| Pass ceiling (5 edits) | **A** | project + rigor | `pass-ceiling.js` blocks at 5 |
+| CI / UX gates | **A** | project + rigor | `ci_gates` / `ux_gate` block until verifier artifacts |
+| Mechanical advance | **A** | project + rigor | `machina-advance.js` via `/machina next` |
+| Verifier capture | **B** | project + rigor | `verifier-capture.js` on Bash → `.machina/verifiers/` |
+| TDD RED→GREEN | **A** | project + rigor | red = tests only; green needs `red.txt` exit≠0 |
+| Ship security floor | **A** | project + ship | sensitive paths need security spec |
+| Surgical changes | C | advisory | ship mode default |
+| Telemetry | B | per tier | `.machina/telemetry.jsonl` — `make report` |
 
 ---
 
@@ -68,30 +73,34 @@ Optional: `/plugin marketplace add obra/superpowers-marketplace` + install super
 
 ---
 
-## Architecture
+## Architecture (v4 two-tier)
 
 ```
-~/.claude/
+~/.claude/                          GLOBAL — always on, pleasant default
+  .machina/                         ship, enforcement=off, pass=off
+    state.json                      scope: global
   hooks/
-    harness-init.js      SessionStart — slim context (~5 lines)
-    phase-gate.js        PreToolUse — Tier A phase enforcement
-    pass-ceiling.js      PreToolUse — Tier A edit limit
-    secret-guard.js      PreToolUse — Tier A secrets
-    verifier-capture.js  PostToolUse Bash — verifier artifacts
-  machina/harness.md     Canonical spec (on demand: /machina rules)
-  commands/machina-*.md  /machina status | rigor | ship | next | reset
+    harness-init.js                 slim global context
+    secret-guard.js                 always on
+    phase-gate.js                   project repos only (ship floor + rigor)
+    pass-ceiling.js                 project + rigor only
+    verifier-capture.js             project + rigor only
+  machina/harness.md                full spec on demand (/machina rules)
+  scripts/harness-smoke-test.js     verify install without live session
 
-your-project/
+your-project/                       PROJECT — opt-in via bootstrap
   .machina/
-    state.json           phase, rigor, task, pass_count
-    rigor                ship | rigor
-    verifiers/<task>/    red.txt, green.txt, ci.txt, ux.txt
-    telemetry.jsonl      harness events (make report)
-  .agent-profile         internal: lean | standard | full (tool install)
-  specs/**/              spec-kit artifacts (rigor mode)
+    state.json                      scope: project
+    rigor                           ship | rigor
+    verifiers/<task>/               red.txt, green.txt, ci.txt, ux.txt
+  .agent-profile                    lean | standard | full (tool install)
+  specs/**/                         spec-kit artifacts (rigor mode)
 ```
 
-### Rigor mode state machine
+**Resolution:** `resolveHarnessRoot()` walks cwd → ancestors for `repo/.machina/`; falls back
+to `~/.claude/.machina/`. Ignores erroneous `~/.machina/` at home root.
+
+### Rigor mode state machine (project + `/machina rigor` only)
 
 ```
 orient → speckit_specify → security_spec → speckit_plan → speckit_tasks
@@ -158,7 +167,8 @@ make profile-setup   # lazy tool install
 make verify          # fail-loud preflight
 make report          # telemetry summary
 make harness-test    # acceptance tests
-make check-pins      # PINNED vs LATEST
+make smoke-test    # global revamp smoke test (no live Claude session)
+make check-pins    # PINNED vs LATEST
 make update          # sync installed files from repo
 ```
 
@@ -203,6 +213,20 @@ See `templates/cursor/README.md`.
 ---
 
 ## Changelog
+
+### v4.0.0 — Two-tier harness (global vs project)
+
+**Breaking:** Global Claude sessions no longer inherit pass ceiling, phase gates, or verifier
+capture from a home-directory `.machina/`. Enforcement is scoped by tier.
+
+- **Two-tier runtime:** `resolveHarnessRoot()` — `~/.claude/.machina/` (global, ship, enforcement off) vs `repo/.machina/` (project harness)
+- **Scoped enforcement:** `pass-ceiling.js` + `verifier-capture.js` → project + rigor only; `phase-gate.js` → project repos only (ship security floor + rigor phases)
+- **Global scaffold:** `make global-setup` creates `~/.claude/.machina/` with `scope: global`
+- **Home-root fix:** ignores erroneous `~/.machina/` at `$HOME` — use `~/.claude/.machina/` only
+- **Slim global SessionStart:** ~3-line harness context when tier=global
+- **Statusline:** shows `global` tier and `pass: off` outside project rigor
+- **Smoke test:** `scripts/harness-smoke-test.js` + `make smoke-test` — verify hooks without live Claude
+- **Legacy hooks:** v2.5 `mode-init.js` / `done-signal-guard.js` no longer installed to hot path
 
 ### v3.3.0 — Task auto-assignment from tasks.md
 

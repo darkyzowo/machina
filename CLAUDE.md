@@ -2,7 +2,9 @@
 
 Read `AGENT_INSTRUCTIONS.md` for project overrides. Session bootstrap only.
 
-## Machina v3 harness
+## Machina v4 harness
+
+**Global** (via `~/.claude/.machina/`): ship, enforcement off. **Project** (`.machina/`): `/machina rigor` for full loop.
 
 State: `.machina/state.json` | Commands: `/machina status` | `rigor` | `ship` | `next` | `reset`
 

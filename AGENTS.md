@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Cross-agent entry point. **Machina v3 targets Claude Code** as the primary harness.
+Cross-agent entry point. **Machina v4 targets Claude Code** as the primary harness.
 
 ## Claude Code
 

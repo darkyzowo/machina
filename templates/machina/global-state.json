@@ -1,6 +1,7 @@
 {
   "phase": "orient",
   "rigor": "ship",
+  "scope": "global",
   "current_task": null,
   "current_task_body": null,
   "pass_count": 0,
@@ -8,6 +9,5 @@
   "ux_skip_reason": null,
   "security_spec": "pending",
   "profile": "lean",
-  "ui_touched": false,
-  "scope": "project"
+  "ui_touched": false
 }

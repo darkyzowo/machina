@@ -1,4 +1,4 @@
-.PHONY: help global-setup profile-setup migrate update bootstrap profile verify audit hooks ci-local cursor-install check-pins harness-test report
+.PHONY: help global-setup profile-setup migrate update bootstrap profile verify audit hooks ci-local cursor-install check-pins harness-test smoke-test report
 .DEFAULT_GOAL := help
 
 TARGET ?= .
@@ -42,6 +42,9 @@ check-pins:     ## Print PINNED vs LATEST for managed dependencies
 
 harness-test:   ## Run harness acceptance tests (phase-gate, secret-guard)
 	@bash scripts/test-harness.sh
+
+smoke-test:     ## Smoke test global vs project harness (no live Claude)
+	@node scripts/harness-smoke-test.js
 
 audit:          ## Read-only audit of ~/.claude configs
 	@bash scripts/audit-configs.sh

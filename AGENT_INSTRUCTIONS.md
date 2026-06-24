@@ -1,6 +1,6 @@
 # AGENT_INSTRUCTIONS.md
 
-Project-specific overrides for Machina v3. The harness runtime is mechanical —
+Project-specific overrides for Machina v4. The harness runtime is mechanical —
 see `.machina/state.json` and hooks in `~/.claude/hooks/`.
 
 Canonical spec: `harness.md` (global: `~/.claude/machina/harness.md`).

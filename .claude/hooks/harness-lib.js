@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-lib.js — shared Machina v3 harness runtime (project-scoped state machine)
+// harness-lib.js — shared Machina v4 harness runtime (two-tier state machine)
 
 const fs = require('fs');
 const path = require('path');
@@ -845,7 +845,7 @@ function harnessContext(projectRoot, tier) {
   const taskLine = state.current_task ? `task=${state.current_task}${taskSuffix}` : 'task=none';
   const passLabel = state.rigor === 'rigor' ? `${state.pass_count}/5` : 'off';
   const lines = [
-    `MACHINA v3.3 | rigor=${state.rigor} | phase=${state.phase} | ${taskLine} | pass=${passLabel}${state.ui_touched ? ' | ui' : ''}`,
+    `MACHINA v4.0 | rigor=${state.rigor} | phase=${state.phase} | ${taskLine} | pass=${passLabel}${state.ui_touched ? ' | ui' : ''}`,
     state.rigor === 'rigor'
       ? 'Rigor: spec → security → RED → GREEN → CI → UX. Use /machina next (mechanical advance).'
       : 'Ship: surgical edits + security floors on sensitive paths. Use /machina rigor for full loop.',

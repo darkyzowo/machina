@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════════
-# Machina Global Setup v3.0
-# Installs harness hooks + commands only. Profile tools: profile-setup.sh
+# Machina Global Setup v4.0
+# Installs harness hooks + commands + ~/.claude/.machina/ global scaffold
 #
 # Requirements: Node.js 24+, git, bash
 # Windows: Git Bash or WSL — NOT plain PowerShell
@@ -18,7 +18,7 @@ COMMANDS_DIR="$HOME/.claude/commands"
 
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
-echo "  Machina Global Setup v3.0"
+echo "  Machina Global Setup v4.0"
 echo "═══════════════════════════════════════════════════════════════"
 
 # ── Windows / PowerShell guard ────────────────────────────────────
@@ -79,10 +79,28 @@ for hook in harness-lib.js harness-hook-utils.js harness-init.js phase-gate.js p
   echo "  ✓ $hook"
 done
 
-# Legacy hooks kept but not wired by default
-for legacy in mode-init.js done-signal-guard.js; do
-  [ -f "$REPO_ROOT/.claude/hooks/$legacy" ] && cp "$REPO_ROOT/.claude/hooks/$legacy" "$HOOKS_DIR/$legacy" || true
-done
+# Legacy hooks archived — not installed to hot path in v4
+# (mode-init.js, done-signal-guard.js remain in repo for reference only)
+
+# ── Global .machina scaffold ──────────────────────────────────────
+echo ""
+echo "→ Scaffolding global harness (~/.claude/.machina/)..."
+GLOBAL_MACHINA="$HOME/.claude/.machina"
+mkdir -p "$GLOBAL_MACHINA/verifiers"
+if [ ! -f "$GLOBAL_MACHINA/state.json" ]; then
+  cp "$REPO_ROOT/templates/machina/global-state.json" "$GLOBAL_MACHINA/state.json"
+  echo "  ✓ global state.json"
+fi
+if [ ! -f "$GLOBAL_MACHINA/rigor" ]; then
+  echo "ship" > "$GLOBAL_MACHINA/rigor"
+  echo "  ✓ global rigor (ship)"
+fi
+
+# ── Smoke test script ─────────────────────────────────────────────
+SCRIPTS_DIR="$HOME/.claude/scripts"
+mkdir -p "$SCRIPTS_DIR"
+cp "$REPO_ROOT/scripts/harness-smoke-test.js" "$SCRIPTS_DIR/harness-smoke-test.js"
+echo "  ✓ harness-smoke-test.js → ~/.claude/scripts/"
 
 # ── Slash commands ────────────────────────────────────────────────
 echo ""
@@ -103,8 +121,8 @@ echo "  ✓ statusline.sh + statusline.js"
 # ── CLAUDE.md marker ──────────────────────────────────────────────
 mkdir -p "$(dirname "$CLAUDE_MD")"
 touch "$CLAUDE_MD"
-grep -q "Machina v3" "$CLAUDE_MD" 2>/dev/null \
-  || echo -e "\n# Machina v3 — https://github.com/darkyzowo/machina\n# Harness injected by harness-init.js | /machina rigor | /machina ship" >> "$CLAUDE_MD"
+grep -qE "Machina v[34]" "$CLAUDE_MD" 2>/dev/null \
+  || echo -e "\n# Machina v4 — https://github.com/darkyzowo/machina\n# Global: ~/.claude/.machina/ (ship) | Project: /machina rigor after bootstrap" >> "$CLAUDE_MD"
 echo "  ✓ CLAUDE.md updated (idempotent)"
 
 # ── Wire hooks (prefer migrate-v3.sh for upgrades) ─────────────────
@@ -117,7 +135,9 @@ fi
 
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
-echo "  ✓ Machina v3.1 global setup complete"
+echo "  ✓ Machina v4.0 global setup complete"
+echo ""
+echo "  Verify: node ~/.claude/scripts/harness-smoke-test.js"
 echo ""
 echo "  Next steps:"
 echo "    cd your-project"

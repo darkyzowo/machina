@@ -1,17 +1,29 @@
-# Machina Harness Spec v3.0
+# Machina Harness Spec v4.0
 # Source: ~/.claude/machina/harness.md — update via: make update
 
 ---
 
-## §0 — Hard limits (Tier A/B — mechanically enforced)
+## §0 — Two tiers (v4)
 
-| Control | Tier | Mechanism |
-|---------|------|-----------|
-| Pass ceiling (5 edits) | A | `pass-ceiling.js` blocks Edit/Write |
-| Phase gates (rigor mode) | A | `phase-gate.js` blocks writes by phase |
-| Secret patterns | A | `secret-guard.js` blocks writes (all modes) |
-| Done signal | B | Verifier artifacts in `.machina/verifiers/` required to advance |
-| TDD RED→GREEN | A | `red` phase blocks impl; `green` requires `red.txt` exit≠0 |
+| Tier | Path | Default | What enforces |
+|------|------|---------|---------------|
+| **Global** | `~/.claude/.machina/` | ship, `scope: global` | `secret-guard.js` only |
+| **Project** | `repo/.machina/` | ship → `/machina rigor` | full harness when rigor |
+
+Never create `$HOME/.machina/` — global state lives under `~/.claude/.machina/` only.
+
+---
+
+## §0b — Hard limits (Tier A/B — scope varies)
+
+| Control | Tier | Scope | Mechanism |
+|---------|------|-------|-----------|
+| Secret patterns | A | global + project | `secret-guard.js` |
+| Pass ceiling (5 edits) | A | project + rigor | `pass-ceiling.js` |
+| Phase gates | A | project + rigor | `phase-gate.js` |
+| Ship security floor | A | project + ship | sensitive paths need security spec |
+| Done signal | B | project + rigor | verifier artifacts required to advance |
+| TDD RED→GREEN | A | project + rigor | red blocks impl; green needs `red.txt` exit≠0 |
 
 **Done = verifiable.** External tool output only — never self-grade.
 

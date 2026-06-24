@@ -43,15 +43,17 @@ diff_and_stage() {
 
 echo
 echo "══════════════════════════════════════════════════════════════"
-echo "  Machina v3 Update"
+echo "  Machina v4 Update"
 echo "══════════════════════════════════════════════════════════════"
 
 diff_and_stage "harness.md"           "$REPO_ROOT/harness.md"                          "$MACHINA_DIR/harness.md"
 diff_and_stage "rules.md (alias)"     "$REPO_ROOT/harness.md"                          "$MACHINA_DIR/rules.md"
 
-for hook in harness-lib.js harness-hook-utils.js harness-init.js phase-gate.js pass-ceiling.js secret-guard.js verifier-capture.js; do
+for hook in harness-lib.js harness-hook-utils.js harness-init.js phase-gate.js pass-ceiling.js secret-guard.js verifier-capture.js machina-advance.js; do
   diff_and_stage "$hook" "$REPO_ROOT/.claude/hooks/$hook" "$HOOKS_DIR/$hook"
 done
+
+diff_and_stage "harness-smoke-test.js" "$REPO_ROOT/scripts/harness-smoke-test.js" "$HOME/.claude/scripts/harness-smoke-test.js"
 
 for cmd in machina-status.md machina-rigor.md machina-ship.md machina-next.md machina-reset.md machina-rules.md machina-ux.md security-spec.md security-review.md project.md casual.md; do
   [ -f "$REPO_ROOT/.claude/commands/$cmd" ] && \
